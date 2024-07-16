@@ -1,20 +1,17 @@
 import tkinter as tki
-from tkinter import ttk
-from tkinter import scrolledtext
 from tkinter import simpledialog
 from PIL import Image, ImageTk
 import cv2
 import os
 import datetime
 from database import *
-from cropper import *
-from facenet import adjust_gamma
-from camera_window import *
 
+from yunet import YuNet
+from sface import SFace
 
 class admin_window():
     
-    def __init__(self):
+    def __init__(self, fd_model_path: str, fr_model_path: str ):
         
         self.root = tki.Tk()
         self.outputPath = "C:/Users/rlaal/Desktop/ByteOrbit/faceDetect/images"  # where the captured images are saved
@@ -24,18 +21,20 @@ class admin_window():
         self.root.title("Peekaboo Administrator")
         self.root.geometry("1000x500") # Peekaboo window size
 
-        self.FRmodel = load_model("model")
+        self.fdetect_model = YuNet(fd_model_path)
+        self.frecogi_model = SFace(fr_model_path)
+        print("models loaded")
 
         self.myDB = vectorDB('postgres', '2518', 'FaceDetection', 'localhost')
-        #self.myDB.createFaceTable() # to reset DB
 
         self.setupUI()
 
         self.video_feed = cv2.VideoCapture(0)
+        self.fdetect_model.setInputSize([self.video_feed.get(cv2.CAP_PROP_FRAME_WIDTH), 
+                                         self.video_feed.get(cv2.CAP_PROP_FRAME_HEIGHT)])
 
         self.cameraLoop()
         self.root.mainloop()
-
 
         
     # captures the frame and saves the image to outputPath
@@ -95,7 +94,6 @@ class admin_window():
         text_label = tki.Label(thumbnailWindow, text=fullName)
         text_label.pack()
 
-
     
     def onVerify(self):
         ts = datetime.datetime.now() # ts for time stamp
@@ -104,6 +102,8 @@ class admin_window():
 
         _, frame = self.video_feed.read()
         if frame is not None:
+            
+            
             frame = cropper.extract_face(frame)
 
             cv2.imwrite(p, frame)
@@ -141,8 +141,8 @@ class admin_window():
         text_label.pack()
 
 
-
     def onLogs(self):
+
         eventWindow = tki.Toplevel()
         eventWindow.title("Event logs")
         eventWindow.config(width=300, height=600)
@@ -166,12 +166,10 @@ class admin_window():
         eventText.config(yscrollcommand=scrollbar.set)
 
 
-
     def onClose(self):
         self.myDB.close_conn()
         self.video_feed.release()
         self.root.quit()
-
 
 
     def setupUI(self):
@@ -194,7 +192,6 @@ class admin_window():
         self.btns_frame.pack(side="bottom")
 
 
-
     def cameraLoop(self):
 
         _, frame = self.video_feed.read()
@@ -212,12 +209,3 @@ class admin_window():
         self.camera_feed.configure(image=imgTk, height=360, width=640)
 
         self.camera_feed.after(10, self.cameraLoop) 
-
-
-def main():
-    #cw = camera_window()
-    a=admin_window()
-    #cw.turn_camera_on()
-
-if __name__=="__main__":
-    main()
