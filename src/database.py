@@ -1,11 +1,11 @@
 # postgreSQL database to store faces (name & img_encoding) & events
 
+
 import psycopg2 # make sure to install postgreSQL on your machine
                 # also make sure your postgreSQL server is running if running locally
-
 from psycopg2 import sql
+#from pgvector.psycopg2 import register_vector   # pip install pgvector
 import pickle 
-
 import numpy as np 
 import tensorflow as tf
 
@@ -145,7 +145,7 @@ class vectorDB:     # can be improved using actual vector DB
             cursor.execute(addEncoding, encodingQuery)
 
             logEvent = ("INSERT INTO Events (ID, description) VALUES (%s, %s)")
-            description = "Old face of {} added to Faces table.".format(firstName)
+            description = "Old face {} was added to Faces table.".format(firstName)
             eventQuery = (id, description)
             cursor.execute(logEvent, eventQuery)
 
@@ -384,8 +384,8 @@ class vectorDB:     # can be improved using actual vector DB
 
         if id == "stranger":
             description = "Unregistered face tried to verify on the system."
-            eventQuery = "INSERT INTO Events (description) VALUES {}".format(description)
-            cursor.execute(eventQuery)
+            eventQuery = "INSERT INTO Events (description) VALUES %s"
+            cursor.execute(eventQuery, description)
 
             cursor.close()
 
