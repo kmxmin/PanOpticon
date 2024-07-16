@@ -9,14 +9,13 @@ import database
 from image_tools import *
 from facenet import *
 
-
 from yunet import YuNet
 from sface import SFace
 
 class admin_window():
     
     def __init__(self, fd_model_path: str, fr_model_path: str) -> None:
-      
+        
         self.root = tki.Tk()
         self.outputPath = "C:/Users/rlaal/Desktop/ByteOrbit/PanOpticon/images"  # where the captured images are saved - change according to your local machine
  
@@ -27,7 +26,6 @@ class admin_window():
         
         self.root.bind("<Escape>", self.onClose)
         self.root.protocol("WM_DELETE_WINDOW", self.onClose)
-
         self.root.title("PanOpticon Administrator")
         self.root.geometry("1000x500") # window size
 
@@ -43,6 +41,7 @@ class admin_window():
 
         self.cameraLoop()
         self.root.mainloop()
+
 
         
     # captures the frame and saves the image to outputPath
@@ -108,6 +107,7 @@ class admin_window():
         text_label = tki.Label(thumbnailWindow, text=fullName)
         text_label.pack()
 
+
     
     def onVerify(self):
         ts = datetime.datetime.now() # ts for time stamp
@@ -117,7 +117,6 @@ class admin_window():
         _, frame = self.video_feed.read()
         if frame is not None:
             frame, _ = extract_face(frame, self.fdetect_model)
-
 
             cv2.imwrite(p, frame)
             print("Frame captured")
@@ -145,12 +144,14 @@ class admin_window():
             dist, is_recognised = self.frecogi_model.dist(trg_emb, this_emb)
 
             if is_recognised:
-                identity = self.myDB.verification(id)
                 break
             else:
+                id = "stranger"
                 continue
             
-        displayText = "Hi, {}".format(identity)
+        identity = self.myDB.verification(id)
+
+        displayText = "Hi, {} ; dist: {}".format(identity, dist)
 
 
         # display captured img
@@ -167,8 +168,8 @@ class admin_window():
         text_label.pack()
 
 
-    def onLogs(self):
 
+    def onLogs(self):
         eventWindow = tki.Toplevel()
         eventWindow.title("Event logs")
         eventWindow.config(width=300, height=600)
@@ -192,10 +193,12 @@ class admin_window():
         eventText.config(yscrollcommand=scrollbar.set)
 
 
+
     def onClose(self):
         self.myDB.close_conn()
         self.video_feed.release()
         self.root.quit()
+
 
 
     def setupUI(self):
@@ -218,6 +221,7 @@ class admin_window():
         self.btns_frame.pack(side="bottom")
 
 
+
     def cameraLoop(self):
 
         _, frame = self.video_feed.read()
@@ -235,4 +239,6 @@ class admin_window():
         self.camera_feed.configure(image=imgTk, height=360, width=640)
 
         self.camera_feed.after(10, self.cameraLoop) 
+
+
 
