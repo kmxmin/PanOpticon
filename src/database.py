@@ -7,12 +7,11 @@ from psycopg2 import sql
 #from pgvector.psycopg2 import register_vector   # pip install pgvector
 import pickle 
 import numpy as np 
-from facenet import *
 import tensorflow as tf
 
 
 
-class vectorDB:
+class vectorDB:     # can be improved using actual vector DB
 
     # connects to db
     # myDB = vectorDB('postgres', '2518', 'FaceDetect', 'localhost')
@@ -146,7 +145,7 @@ class vectorDB:
             cursor.execute(addEncoding, encodingQuery)
 
             logEvent = ("INSERT INTO Events (ID, description) VALUES (%s, %s)")
-            description = "New face of {} added to Faces table.".format(firstName)
+            description = "Old face of {} added to Faces table.".format(firstName)
             eventQuery = (id, description)
             cursor.execute(logEvent, eventQuery)
 
@@ -182,7 +181,7 @@ class vectorDB:
             cursor.execute(addEncoding, encodingQuery)
 
             logEvent = ("INSERT INTO Events (ID, description) VALUES (%s, %s)")
-            description = "Old face {} added to Encoding table.".format(firstName)
+            description = "New face {} added to Encoding table.".format(firstName)
             eventQuery = (id, description)
             cursor.execute(logEvent, eventQuery)
 
@@ -345,10 +344,10 @@ class vectorDB:
 
     # take image and finds their identity on DB
     # returns true if exists
-    def verify(self, image : np.ndarray, model):
+    def verify(self, capturedEncoding : np.ndarray, model) -> tuple:
         cursor = self.conn.cursor()
 
-        capturedEncoding =  img_to_encoding(image, model)
+        #capturedEncoding = img_to_encoding(image, model)
 
         min_dist = 100
 
@@ -376,6 +375,33 @@ class vectorDB:
             
             cursor.close()
             return True, str(identity)
+        
+    
+    # adds verification log onto Events table
+    def verification(self, id):
+        cursor = self.conn.cursor()
+        logEvent = ("INSERT INTO Events (ID, description) VALUES (%s, %s)")
+
+        if id == "stranger":
+            description = "Unregistered face tried to verify on the system."
+            eventQuery = "INSERT INTO Events (description) VALUES {}".format(description)
+            cursor.execute(eventQuery)
+
+            cursor.close()
+
+            return "stranger"
+        else:
+            cursor.execute("SELECT (firstName) FROM Faces WHERE ID = '{}'".format(id))
+            firstName = cursor.fetchone()[0]
+            
+            description = "{} was verified on the system.".format(firstName)
+            
+            eventQuery = (id, description)
+            cursor.execute(logEvent, eventQuery)
+
+            cursor.close()
+
+            return firstName
 
 
 
