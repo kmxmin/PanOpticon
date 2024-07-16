@@ -5,7 +5,7 @@ import cv2
 import os
 import datetime
 
-from database import *
+import database
 from image_tools import *
 from facenet import *
 
@@ -17,8 +17,8 @@ class admin_window():
     def __init__(self, fd_model_path: str, fr_model_path: str) -> None:
         
         self.root = tki.Tk()
-        self.outputPath = "C:/Users/rlaal/Desktop/ByteOrbit/PanOpticon/images"  # where the captured images are saved
-
+        self.outputPath = "C:/Users/rlaal/Desktop/ByteOrbit/PanOpticon/images"  # where the captured images are saved - change according to your local machine
+ 
         # load in detection and recognition models
         self.fdetect_model = YuNet(modelPath=fd_model_path, confThreshold=0.8)
         self.frecogi_model = SFace(modelPath=fr_model_path, disType=1)
@@ -27,11 +27,9 @@ class admin_window():
         self.root.bind("<Escape>", self.onClose)
         self.root.protocol("WM_DELETE_WINDOW", self.onClose)
         self.root.title("PanOpticon Administrator")
-        self.root.geometry("1000x500") # Peekaboo window size
+        self.root.geometry("1000x500") # window size
 
-        #self.FRmodel = load_model("model")
-
-        self.myDB = vectorDB('postgres', '2518', 'FaceDetection', 'localhost')
+        self.myDB = database.vectorDB('postgres', '2518', 'FaceDetection', 'localhost')     # change this line to your local server credentials
         #self.myDB.createFaceTable() # to reset DB
 
         self.setupUI()
@@ -118,7 +116,7 @@ class admin_window():
 
         _, frame = self.video_feed.read()
         if frame is not None:
-            frame = extract_face(frame)
+            frame, _ = extract_face(frame, self.fdetect_model)
 
             cv2.imwrite(p, frame)
             print("Frame captured")
@@ -134,12 +132,25 @@ class admin_window():
         img = Image.open(fileName)
         numpyImg = np.asarray(img)
 
-        verification, identity = self.myDB.verify(numpyImg, self.FRmodel)
+        self.KnownEmbs = self.myDB.fetchEncodings()
 
-        if verification:
-            displayText = "Hi, {}".format(identity)
-        else:
-            displayText = "Unknown face"
+        this_emb = self.frecogi_model.infer(numpyImg)
+
+        for id in self.KnownEmbs.keys():
+            #print(self.KnownEmbs.keys())
+        
+            trg_emb = self.KnownEmbs[id]
+
+            dist, is_recognised = self.frecogi_model.dist(trg_emb, this_emb)
+
+            if is_recognised:
+                identity = self.myDB.verification(id)
+                break
+            else:
+                continue
+            
+        displayText = "Hi, {}".format(identity)
+
 
         # display captured img
         thumbnailWindow = tki.Toplevel()
