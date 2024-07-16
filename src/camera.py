@@ -88,7 +88,6 @@ class Camera():
                 x1, y1 = bbox[0], bbox[1]
                 x2, y2 = bbox[0] + bbox[2], bbox[1] + bbox[3]
 
-
                 cv2.rectangle(output, (x1, y1), (x2, y2), (0,255,0), 2)
                 cv2.putText(output, f"{name} dist: {dist:.2}", (x1+5,y1-15), cv2.FONT_HERSHEY_COMPLEX, 1, box_col)
 

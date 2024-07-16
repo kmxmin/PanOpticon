@@ -1,11 +1,11 @@
 # postgreSQL database to store faces (name & img_encoding) & events
 
-
 import psycopg2 # make sure to install postgreSQL on your machine
                 # also make sure your postgreSQL server is running if running locally
+
 from psycopg2 import sql
-#from pgvector.psycopg2 import register_vector   # pip install pgvector
 import pickle 
+
 import numpy as np 
 import tensorflow as tf
 
