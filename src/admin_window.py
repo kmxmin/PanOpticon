@@ -79,7 +79,6 @@ class admin_window():
         newFace, id = self.myDB.addFaces(firstName, lastName, img_to_encoding(numpyImg, self.FRmodel))
         if newFace:
             self.myDB.addThumbnail(id, fileName)
-            print("Successfully added thumbnail!")
 
 
         # display captured img
@@ -95,7 +94,6 @@ class admin_window():
         fullName = "Hi, " + firstName + ' ' + lastName
         text_label = tki.Label(thumbnailWindow, text=fullName)
         text_label.pack()
-
 
 
     
@@ -122,8 +120,25 @@ class admin_window():
         img = Image.open(fileName)
         numpyImg = asarray(img)
 
-        self.myDB.verify(numpyImg, self.FRmodel)
-        #self.myDB.verifyID(numpyImg, fullName, self.FRmodel)
+        verification, identity = self.myDB.verify(numpyImg, self.FRmodel)
+
+        if verification:
+            displayText = "Hi, {}".format(identity)
+        else:
+            displayText = "Unknown face"
+
+        # display captured img
+        thumbnailWindow = tki.Toplevel()
+        thumbnailWindow.title("Preview Image")
+        thumbnailWindow.geometry("300x300")
+
+        thumbnail = ImageTk.PhotoImage(img)
+        panel = tki.Label(thumbnailWindow, image = thumbnail)
+        panel.image = thumbnail
+        panel.pack()
+
+        text_label = tki.Label(thumbnailWindow, text = displayText)
+        text_label.pack()
 
 
 
@@ -158,6 +173,7 @@ class admin_window():
         self.root.quit()
 
 
+
     def setupUI(self):
         # placing UI elements
 
@@ -176,6 +192,7 @@ class admin_window():
         self.btn_log.pack(side="left")
 
         self.btns_frame.pack(side="bottom")
+
 
 
     def cameraLoop(self):
