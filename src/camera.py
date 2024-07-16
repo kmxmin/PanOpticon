@@ -3,6 +3,9 @@
 import cv2
 import numpy as np
 
+from datetime import datetime
+from threading import Event
+
 from yunet import YuNet
 from sface import SFace
 
@@ -14,9 +17,14 @@ class Camera():
         self.frecogi_model = SFace(modelPath=fr_model_path, disType=1)
         print("models loaded...")
 
+        self.loadKnownFaces("Path")
+
         self.vid_stream = cv2.VideoCapture(0)
         self.width = int(self.vid_stream.get(cv2.CAP_PROP_FRAME_WIDTH))
         self.height = int(self.vid_stream.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+        self.is_on = Event()
+        self.is_on.clear()
 
         self.fdetect_model.setInputSize([self.width, self.height])
 
@@ -24,12 +32,19 @@ class Camera():
 
     def camera_loop(self):
         print("camera loop")
-        while cv2.waitKey(0) < 1:
+        
+        self.is_on.set()
+
+        while self.is_on.is_set():
 
             hasFrame, frame = self.vid_stream.read()
 
             if not hasFrame:
                 print("no frame :(")
+                break
+            
+            elif cv2.waitKey(1) & 0xFF == ord('q'):
+                self.vid_stream.release
                 break
 
             self.tm.start()
@@ -39,19 +54,19 @@ class Camera():
             frame = self.visualize(frame, fdetect_results, fps=self.tm.getFPS)
 
             cv2.imshow("camera", frame)
-            print("frame")
 
             self.tm.reset()
     
-    def get_name_tag(self, img, bbox) -> tuple:
+    def get_name_tag(self, img) -> tuple:
         name_tag = "?unknown?"
 
-        this_emb = self.frecogi_model.infer(img, bbox)
+        # this_emb = self.frecogi_model.infer(img, bbox)
+        this_emb = self.frecogi_model.infer(img)
 
         for name in self.KnownEmbs:
         
             trg_emb = self.KnownEmbs[name]
-            dist, is_recognised = dist(trg_emb, this_emb)
+            dist, is_recognised = self.frecogi_model.dist(trg_emb, this_emb)
 
             if is_recognised:
                 name_tag = name
@@ -66,7 +81,7 @@ class Camera():
 
         for i, det in enumerate(results):
             
-            name, dist, is_recognised = self.get_name_tag(output, bbox)
+            name, dist, is_recognised = self.get_name_tag(output)
 
             if is_recognised:
                 bbox = det[0:4].astype(np.int32)
@@ -85,6 +100,12 @@ class Camera():
                 cv2.rectangle(output, (x1, y1), (x2, y2), (0,0,255), 2)
                 cv2.putText(output, f"dist: {dist:.2}", (x1+5,y1-15), cv2.FONT_HERSHEY_COMPLEX, 1, box_col)
                     
+        # add time and fps counter
+        curr_time = datetime().now()
+
+        cv2.putText(output, f"{curr_time.strftime("%Y-%m-%d %H:%M:%S")}", (5,15), fontFace=1, fontScale=1, color=(0,255,0))
+        cv2.putText(output, f"{fps} frames/sec", (5,30), fontFace=1, fontScale=1, color=(0,255,0))
+
 
         return output
 
