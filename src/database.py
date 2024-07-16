@@ -103,7 +103,7 @@ class vectorDB:
         
         cursor.execute("UPDATE Faces SET thumbnail = %s WHERE ID = %s", (imgPath, id))
 
-        print("Added thumbnail")
+        print("Successfully added thumbnail!")
 
         cursor.close()
 
@@ -136,7 +136,7 @@ class vectorDB:
                 # don't add them to Faces table; only add the encoding
                 for row in matchingRows:
                     id = row[0]
-                    print("Old face {}'s ID: {}".format(firstName, id))
+                    #print("Old face {}'s ID: {}".format(firstName, id))
 
             # now add pickledEncoding
             pickledEncoding = pickle.dumps(encoding) # dumps() serialises an object
@@ -146,7 +146,7 @@ class vectorDB:
             cursor.execute(addEncoding, encodingQuery)
 
             logEvent = ("INSERT INTO Events (ID, description) VALUES (%s, %s)")
-            description = "New face added to Faces table."
+            description = "New face of {} added to Faces table.".format(firstName)
             eventQuery = (id, description)
             cursor.execute(logEvent, eventQuery)
 
@@ -193,7 +193,7 @@ class vectorDB:
             return True, id # then add thumbnail
         
 
-
+    '''
     # if identity exists on db, it verifies. Otherwise says it doesn't exist.
     def verifyID(self, img: np.ndarray, identity : str, model):
         fullName = identity.split()
@@ -251,7 +251,7 @@ class vectorDB:
             self.conn.rollback()
 
         cursor.close()
-
+    '''
     
 
     # prints/returns the number of registered faces
@@ -362,22 +362,20 @@ class vectorDB:
                 lastEncoding = encoding
 
         if min_dist > 0.7:
-            print("Not in the database.")
+            #print("Not in the database.")
             cursor.close()
-            return False
+            return False, ""
+        
         else:
             for id, encoding in allEncodings.items():
                 if np.array_equal(encoding, lastEncoding):
                     cursor.execute("SELECT (firstName) FROM Faces WHERE ID = '{}'".format(id))
                     identity = cursor.fetchone()[0]
 
-            print ("Hi " + str(identity) + ", the distance is " + str(min_dist))
+            #print ("Hi " + str(identity) + ", the distance is " + str(min_dist))
             
             cursor.close()
-
-            return True, identity
-
-        #return identity
+            return True, str(identity)
 
 
 
