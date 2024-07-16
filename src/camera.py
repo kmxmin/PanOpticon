@@ -9,6 +9,8 @@ from threading import Event
 from yunet import YuNet
 from sface import SFace
 
+from database import *
+
 class Camera():
     def __init__(self, fd_model_path: str, fr_model_path: str) -> None:        
 
@@ -17,7 +19,10 @@ class Camera():
         self.frecogi_model = SFace(modelPath=fr_model_path, disType=1)
         print("models loaded...")
 
-        self.loadKnownFaces("Path")
+        self.myDB = vectorDB('postgres', '2518', 'FaceDetection', 'localhost')  # connect to DB
+
+        #self.loadKnownFaces("Path")
+        self.loadKnownFaces()
 
         self.vid_stream = cv2.VideoCapture(0)
         self.width = int(self.vid_stream.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -51,7 +56,7 @@ class Camera():
             fdetect_results = self.fdetect_model.infer(frame)
             self.tm.stop()
 
-            frame = self.visualize(frame, fdetect_results, fps=self.tm.getFPS)
+            frame = self.visualize(frame, fdetect_results, fps=self.tm.getFPS())
 
             cv2.imshow("camera", frame)
 
@@ -63,10 +68,13 @@ class Camera():
         # this_emb = self.frecogi_model.infer(img, bbox)
         this_emb = self.frecogi_model.infer(img)
 
-        for name in self.KnownEmbs:
+        for name in self.KnownEmbs.keys():
+            #print(self.KnownEmbs.keys())
         
             trg_emb = self.KnownEmbs[name]
+
             dist, is_recognised = self.frecogi_model.dist(trg_emb, this_emb)
+            #is_recognised, name = self.myDB.verify()
 
             if is_recognised:
                 name_tag = name
@@ -88,6 +96,7 @@ class Camera():
                 x1, y1 = bbox[0], bbox[1]
                 x2, y2 = bbox[0] + bbox[2], bbox[1] + bbox[3]
 
+
                 cv2.rectangle(output, (x1, y1), (x2, y2), (0,255,0), 2)
                 cv2.putText(output, f"{name} dist: {dist:.2}", (x1+5,y1-15), cv2.FONT_HERSHEY_COMPLEX, 1, box_col)
 
@@ -100,7 +109,7 @@ class Camera():
                 cv2.putText(output, f"dist: {dist:.2}", (x1+5,y1-15), cv2.FONT_HERSHEY_COMPLEX, 1, box_col)
                     
         # add time and fps counter
-        curr_time = datetime().now()
+        curr_time = datetime.now()
 
         cv2.putText(output, f"{curr_time.strftime("%Y-%m-%d %H:%M:%S")}", (5,15), fontFace=1, fontScale=1, color=(0,255,0))
         cv2.putText(output, f"{fps} frames/sec", (5,30), fontFace=1, fontScale=1, color=(0,255,0))
@@ -108,19 +117,14 @@ class Camera():
 
         return output
 
-    def loadKnownFaces(self, face_imgs_path: str) -> dict:
-        
-        # TODO
-        # pull images from db and load to dir target_faces
-        # calculate embeddings and save to output dictionary
-        # add some face cropping and gamma correction
+    # returns {name:encoding} dictionary called self.KnownEmbs of all registered faces
+    def loadKnownFaces(self) -> dict:
 
         self.KnownEmbs = dict()
 
-        img = cv2.imread("target_faces/Josh0.jpg") # cropped image of a face
-        name = "Josh"
-        
-        self.KnownEmbs[name] = self.frecogi_model.infer(img)
+        self.KnownEmbs = self.myDB.fetchEncodings()
+        numOfFaces = self.myDB.numOfFaces()
 
-        print(f"{1} face(s) loaded...")
+        print("{} face(s) loaded...".format(numOfFaces))
+
         return self.KnownEmbs
