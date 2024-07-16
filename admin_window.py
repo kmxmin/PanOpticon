@@ -1,30 +1,35 @@
 import tkinter as tki
-from tkinter import ttk
-from tkinter import scrolledtext
 from tkinter import simpledialog
 from PIL import Image, ImageTk
 import cv2
 import os
 import datetime
-from database import *
-from cropper import *
-from facenet import adjust_gamma
-from camera_window import *
 
+from database import *
+from image_tools import *
+from facenet import *
+
+from yunet import YuNet
+from sface import SFace
 
 class admin_window():
     
-    def __init__(self):
+    def __init__(self, fd_model_path: str, fr_model_path: str) -> None:
         
         self.root = tki.Tk()
-        self.outputPath = "C:/Users/rlaal/Desktop/ByteOrbit/faceDetect/images"  # where the captured images are saved
+        self.outputPath = "C:/Users/rlaal/Desktop/ByteOrbit/PanOpticon/images"  # where the captured images are saved
+
+        # load in detection and recognition models
+        self.fdetect_model = YuNet(modelPath=fd_model_path, confThreshold=0.8)
+        self.frecogi_model = SFace(modelPath=fr_model_path, disType=1)
+        print("models loaded...")
         
         self.root.bind("<Escape>", self.onClose)
         self.root.protocol("WM_DELETE_WINDOW", self.onClose)
-        self.root.title("Peekaboo Administrator")
+        self.root.title("PanOpticon Administrator")
         self.root.geometry("1000x500") # Peekaboo window size
 
-        self.FRmodel = load_model("model")
+        #self.FRmodel = load_model("model")
 
         self.myDB = vectorDB('postgres', '2518', 'FaceDetection', 'localhost')
         #self.myDB.createFaceTable() # to reset DB
@@ -32,6 +37,9 @@ class admin_window():
         self.setupUI()
 
         self.video_feed = cv2.VideoCapture(0)
+        self.width = int(self.video_feed.get(cv2.CAP_PROP_FRAME_WIDTH))
+        self.height = int(self.video_feed.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        self.fdetect_model.setInputSize([self.width, self.height])
 
         self.cameraLoop()
         self.root.mainloop()
@@ -58,7 +66,7 @@ class admin_window():
             else:
                 pass    # lighting is good
 
-            frame = cropper.extract_face(frame)
+            frame, _ = extract_face(frame, self.fdetect_model)
 
             cv2.imwrite(p, frame)
             print("Frame captured")
@@ -71,15 +79,20 @@ class admin_window():
         firstName = simpledialog.askstring("Input", "First name: ")
         lastName = simpledialog.askstring("Input", "Last name: ")
         
-        # convert img to numpy to store on DB
+        # convert img to numpy
         img = Image.open(fileName)
-        numpyImg = asarray(img)
+        numpyImg = np.asarray(img)
 
-        # add to DB
-        newFace, id = self.myDB.addFaces(firstName, lastName, img_to_encoding(numpyImg, self.FRmodel))
+        # add thumbnail to DB
+        #image = cv2.imread(fileName) # cropped image of a face  
+
+        #encoding = img_to_encoding(numpyImg, self.fdetect_model)
+        encoding = self.frecogi_model.infer(numpyImg)
+        newFace, id = self.myDB.addFaces(firstName, lastName, encoding)
+        #newFace, id = self.myDB.addFaces(firstName, lastName, img_to_encoding(numpyImg, self.fdetect_model))
+
         if newFace:
             self.myDB.addThumbnail(id, fileName)
-            print("Successfully added thumbnail!")
 
 
         # display captured img
@@ -97,7 +110,6 @@ class admin_window():
         text_label.pack()
 
 
-
     
     def onVerify(self):
         ts = datetime.datetime.now() # ts for time stamp
@@ -106,7 +118,7 @@ class admin_window():
 
         _, frame = self.video_feed.read()
         if frame is not None:
-            frame = cropper.extract_face(frame)
+            frame = extract_face(frame)
 
             cv2.imwrite(p, frame)
             print("Frame captured")
@@ -120,10 +132,27 @@ class admin_window():
 
         # convert img to numpy
         img = Image.open(fileName)
-        numpyImg = asarray(img)
+        numpyImg = np.asarray(img)
 
-        self.myDB.verify(numpyImg, self.FRmodel)
-        #self.myDB.verifyID(numpyImg, fullName, self.FRmodel)
+        verification, identity = self.myDB.verify(numpyImg, self.FRmodel)
+
+        if verification:
+            displayText = "Hi, {}".format(identity)
+        else:
+            displayText = "Unknown face"
+
+        # display captured img
+        thumbnailWindow = tki.Toplevel()
+        thumbnailWindow.title("Preview Image")
+        thumbnailWindow.geometry("300x300")
+
+        thumbnail = ImageTk.PhotoImage(img)
+        panel = tki.Label(thumbnailWindow, image = thumbnail)
+        panel.image = thumbnail
+        panel.pack()
+
+        text_label = tki.Label(thumbnailWindow, text = displayText)
+        text_label.pack()
 
 
 
@@ -158,6 +187,7 @@ class admin_window():
         self.root.quit()
 
 
+
     def setupUI(self):
         # placing UI elements
 
@@ -178,6 +208,7 @@ class admin_window():
         self.btns_frame.pack(side="bottom")
 
 
+
     def cameraLoop(self):
 
         _, frame = self.video_feed.read()
@@ -187,7 +218,7 @@ class admin_window():
             return
             
         img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB) # cnverts BGR to RGB
-        img = cv2.resize(img, (650, 650))
+        #img = cv2.resize(img, (650, 650))
         img = Image.fromarray(img) # converts array to image
         imgTk = ImageTk.PhotoImage(img) # converts image to tk bitmap
 
@@ -197,10 +228,4 @@ class admin_window():
         self.camera_feed.after(10, self.cameraLoop) 
 
 
-def main():
-    #cw = camera_window()
-    a=admin_window()
-    #cw.turn_camera_on()
 
-if __name__=="__main__":
-    main()
