@@ -7,7 +7,7 @@ import datetime
 
 import database
 from image_tools import *
-from facenet import *
+# from facenet import *
 
 from yunet import YuNet
 from sface import SFace
@@ -17,7 +17,8 @@ class admin_window():
     def __init__(self, fd_model_path: str, fr_model_path: str) -> None:
         
         self.root = tki.Tk()
-        self.outputPath = "C:/Users/rlaal/Desktop/ByteOrbit/PanOpticon/images"  # where the captured images are saved - change according to your local machine
+        self.cwd_path = os.path.abspath(os.getcwd())
+        self.outputPath = self.cwd_path + "/images"  # where the captured images are saved - change according to your local machine
  
         # load in detection and recognition models
         self.fdetect_model = YuNet(modelPath=fd_model_path, confThreshold=0.8)
@@ -29,15 +30,18 @@ class admin_window():
         self.root.title("PanOpticon Administrator")
         self.root.geometry("1000x500") # window size
 
-        self.myDB = database.vectorDB('postgres', '2518', 'FaceDetection', 'localhost')     # change this line to your local server credentials
+        self.myDB = database.vectorDB('postgres', 'hotwheels', 'FaceDetection', 'localhost')     # change this line to your local server credentials
         #self.myDB.createFaceTable() # to reset DB
-
-        self.setupUI()
 
         self.video_feed = cv2.VideoCapture(0)
         self.width = int(self.video_feed.get(cv2.CAP_PROP_FRAME_WIDTH))
         self.height = int(self.video_feed.get(cv2.CAP_PROP_FRAME_HEIGHT))
         self.fdetect_model.setInputSize([self.width, self.height])
+
+        self.setupUI()
+
+        if not os.path.exists("images"):
+            os.mkdir("images")
 
         self.cameraLoop()
         self.root.mainloop()
@@ -51,18 +55,19 @@ class admin_window():
         p = os.path.sep.join((self.outputPath, fileName))
 
         _, frame = self.video_feed.read()
+
         if frame is not None:
 
-            brightness = brightness_check(frame)
+            # brightness = brightness_check(frame)
 
-            if brightness > 200:   
-                frame = adjust_gamma(frame, 0.5)
-                print("Making it darker")
-            elif brightness < 60:
-                frame = adjust_gamma(frame, 1.5)
-                print("Making it brighter")
-            else:
-                pass    # lighting is good
+            # if brightness > 200:   
+            #     frame = adjust_gamma(frame, 0.5)
+            #     print("Making it darker")
+            # elif brightness < 60:
+            #     frame = adjust_gamma(frame, 1.5)
+            #     print("Making it brighter")
+            # else:
+            #     pass    # lighting is good
 
             frame, _ = extract_face(frame, self.fdetect_model)
 
@@ -117,7 +122,8 @@ class admin_window():
         _, frame = self.video_feed.read()
         if frame is not None:
             frame, _ = extract_face(frame, self.fdetect_model)
-
+            
+            cv2.resize(frame, (160, 160))
             cv2.imwrite(p, frame)
             print("Frame captured")
 
@@ -204,7 +210,7 @@ class admin_window():
     def setupUI(self):
         # placing UI elements
 
-        self.camera_feed = tki.Label(self.root, width=1280, height=720, padx=10, pady=10)
+        self.camera_feed = tki.Label(self.root, width=self.width, height=self.height, padx=10, pady=10)
         self.camera_feed.pack()
 
         self.btns_frame = tki.Frame(self.root)

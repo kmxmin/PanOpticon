@@ -6,10 +6,10 @@ import numpy as np
 from datetime import datetime
 from threading import Event
 
+from database import vectorDB
 from yunet import YuNet
 from sface import SFace
-
-from database import *
+import image_tools
 
 class Camera():
     def __init__(self, fd_model_path: str, fr_model_path: str) -> None:        
@@ -19,9 +19,7 @@ class Camera():
         self.frecogi_model = SFace(modelPath=fr_model_path, disType=1)
         print("models loaded...")
 
-        self.myDB = vectorDB('postgres', '2518', 'FaceDetection', 'localhost')  # connect to DB
-
-        #self.loadKnownFaces("Path")
+        self.myDB = vectorDB('postgres', 'hotwheels', 'FaceDetection', 'localhost')  # connect to DB
         self.loadKnownFaces()
 
         self.vid_stream = cv2.VideoCapture(0)
@@ -36,7 +34,6 @@ class Camera():
         self.tm = cv2.TickMeter()
 
     def camera_loop(self):
-        print("camera loop")
         
         self.is_on.set()
 
@@ -62,26 +59,22 @@ class Camera():
 
             self.tm.reset()
     
-    def get_name_tag(self, img) -> tuple:
+    def verify(self, img) -> tuple:
         name_tag = "?unknown?"
 
-        # this_emb = self.frecogi_model.infer(img, bbox)
         this_emb = self.frecogi_model.infer(img)
 
-        for name in self.KnownEmbs.keys():
-            #print(self.KnownEmbs.keys())
+        for name in self.KnownEmbs:
         
             trg_emb = self.KnownEmbs[name]
-
             dist, is_recognised = self.frecogi_model.dist(trg_emb, this_emb)
-            #is_recognised, name = self.myDB.verify()
 
             if is_recognised:
                 name_tag = name
         
         return name_tag, dist, is_recognised
 
-    def visualize(self, img, results, box_col=(2,255,255), text_col=(2,255,255), fps=None) -> np.ndarray:
+    def visualize(self, img, results, fps=None) -> np.ndarray:
         # adds fps counter and time 
         # adds bounding boxes and name tags
 
@@ -89,35 +82,33 @@ class Camera():
 
         for i, det in enumerate(results):
             
-            name, dist, is_recognised = self.get_name_tag(output)
+            bbox = det[0:4].astype(np.int32)
+            x1, y1 = bbox[0], bbox[1]
+            x2, y2 = bbox[0]+bbox[2], bbox[1]+bbox[3]
+
+            face_img = img[y1:y2, x1:x2]
+            face_img = cv2.resize(face_img, (160,160))
+
+            name, dist, is_recognised = self.verify(face_img)
 
             if is_recognised:
-                bbox = det[0:4].astype(np.int32)
-                x1, y1 = bbox[0], bbox[1]
-                x2, y2 = bbox[0] + bbox[2], bbox[1] + bbox[3]
-
 
                 cv2.rectangle(output, (x1, y1), (x2, y2), (0,255,0), 2)
-                cv2.putText(output, f"{name} dist: {dist:.2}", (x1+5,y1-15), cv2.FONT_HERSHEY_COMPLEX, 1, box_col)
+                cv2.putText(output, f"{name} dist: {dist:.2f}", (x1+5,y1-15), 1, 1, (0,255,0))
 
             else:
-                bbox = det[0:4].astype(np.int32)
-                x1, y1 = bbox[0], bbox[1]
-                x2, y2 = bbox[0]+bbox[2], bbox[1]+bbox[3]
 
-                cv2.rectangle(output, (x1, y1), (x2, y2), (0,0,255), 2)
-                cv2.putText(output, f"dist: {dist:.2}", (x1+5,y1-15), cv2.FONT_HERSHEY_COMPLEX, 1, box_col)
+                cv2.rectangle(output, (x1, y1), (x2, y2), (0,255,255), 2)
+                cv2.putText(output, f"{name} dist: {dist:.2f}", (x1+5,y1-15), 1, 1, (0,255,255))
                     
         # add time and fps counter
         curr_time = datetime.now()
 
         cv2.putText(output, f"{curr_time.strftime("%Y-%m-%d %H:%M:%S")}", (5,15), fontFace=1, fontScale=1, color=(0,255,0))
-        cv2.putText(output, f"{fps} frames/sec", (5,30), fontFace=1, fontScale=1, color=(0,255,0))
-
+        cv2.putText(output, f"{fps:.2f} frames/sec", (5,30), fontFace=1, fontScale=1, color=(0,255,0))
 
         return output
 
-    # returns {name:encoding} dictionary called self.KnownEmbs of all registered faces
     def loadKnownFaces(self) -> dict:
 
         self.KnownEmbs = dict()
@@ -126,5 +117,7 @@ class Camera():
         numOfFaces = self.myDB.numOfFaces()
 
         print("{} face(s) loaded...".format(numOfFaces))
+        
+        print(self.KnownEmbs)
 
         return self.KnownEmbs
