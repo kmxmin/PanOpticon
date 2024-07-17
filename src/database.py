@@ -305,18 +305,20 @@ class vectorDB:     # can be improved using actual vector DB
         
     
     # adds verification log onto Events table; verification happens in admin_window.onVerify()
-    def verification(self, id):
+    def verification(self, id) -> str:
         cursor = self.conn.cursor()
         logEvent = ("INSERT INTO Events (ID, description) VALUES (%s, %s)")
 
         if id == "stranger":
             description = "Unregistered face tried to verify on the system."
-            eventQuery = "INSERT INTO Events (description) VALUES %s"
-            cursor.execute(eventQuery, description)
+            eventQuery = "INSERT INTO Events (description) VALUES (%s)"
+            cursor.execute(eventQuery, (description,))
+
 
             cursor.close()
 
-            return "stranger"
+            return id
+        
         else:
             cursor.execute("SELECT (firstName) FROM Faces WHERE ID = '{}'".format(id))
             firstName = cursor.fetchone()[0]
