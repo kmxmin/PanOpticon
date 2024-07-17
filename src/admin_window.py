@@ -129,7 +129,7 @@ class admin_window():
 
         this_emb = self.frecogi_model.infer(numpyImg)
 
-        found = False
+                is_recognised = False
 
         for id in self.KnownEmbs:
         
@@ -138,15 +138,13 @@ class admin_window():
             dist, is_recognised = self.frecogi_model.dist(trg_emb, this_emb)
 
             if is_recognised:
-                found = True
+                identity = self.myDB.verification(id)
+                displayText = "Hi, {} ; dist: {}".format(identity, dist)
                 break
             else:
                 continue
         
-        if found:
-            identity = self.myDB.verification(id)
-            displayText = "Hi, {} ; dist: {}".format(identity, dist)
-        else:
+        if not is_recognised:
             identity = self.myDB.verification("stranger")
             displayText = "Hi, stranger"
 
