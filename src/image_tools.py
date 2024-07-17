@@ -6,11 +6,14 @@ import numpy as np
 from sface import SFace
 from yunet import YuNet
 
+
 def image_to_encoding(img: np.ndarray, model: SFace):
     return model.infer(image=img)
 
+
 def image_to_encoding(img: np.ndarray, bbox, model: SFace):
     return model.infer(image=img, bbox=bbox)
+
 
 def extract_face(img: np.ndarray, model: YuNet, buffer=20):
     # returns a cropped image using YuNet
@@ -26,5 +29,28 @@ def extract_face(img: np.ndarray, model: YuNet, buffer=20):
         x2, y2 = bbox[0] + bbox[2] + buffer_hlf, bbox[1] + bbox[3] + buffer_hlf
 
         output = img[y1:y2, x1:x2]
+        cv2.resize(output, (160, 160))
 
     return output, len(results)
+
+
+# checks if the image is too bright/dark
+def brightness_check(img : np.ndarray): 
+    brightness = np.mean(img)
+    print("Brightness: " + str(brightness))
+
+    return brightness
+
+
+# gamma correction of images that are too bright/dark
+def adjust_gamma(img : np.ndarray, gamma : float):
+
+    # build a LUT mapping the pixel values [0, 255] to their adjusted gamma values
+    if img.dtype != np.uint8:
+        img = img.astype(np.uint8)
+
+    invGamma = 1.0 / gamma
+    table = np.array([((i / 255.0) ** invGamma) * 255
+        for i in np.arange(0, 256)]).astype("uint8")
+
+    return cv2.LUT(img, table)
