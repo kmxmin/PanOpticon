@@ -6,20 +6,20 @@ import os
 import datetime
 
 import database
-import image_tools as it
+import image_tools
 import numpy as np
 
 from yunet import YuNet
 from sface import SFace
 
+
 class admin_window():
     
     def __init__(self, fd_model_path: str, fr_model_path: str) -> None:
-        
         self.root = tki.Tk()
-        self.cwd_path = os.path.abspath(os.getcwd())
-        self.outputPath = self.cwd_path + "/images"  # where the captured images are saved - change according to your local machine
- 
+        self.outputPath = "C:/Users/rlaal/Desktop/ByteOrbit/PanOpticon/images"  # where the captured images are saved - change according to your local machine
+        print("outputpath: " + self.outputPath)
+
         # load in detection and recognition models
         self.fdetect_model = YuNet(modelPath=fd_model_path, confThreshold=0.8)
         self.frecogi_model = SFace(modelPath=fr_model_path, disType=1)
@@ -28,10 +28,10 @@ class admin_window():
         self.root.bind("<Escape>", self.onClose)
         self.root.protocol("WM_DELETE_WINDOW", self.onClose)
         self.root.title("PanOpticon Administrator")
-        # self.root.geometry("1000x500") # window size
+        # self.root.geometry("1000x500") # Admin window size
 
-        self.myDB = database.vectorDB('postgres', 'hotwheels', 'FaceDetection', 'localhost')     # change this line to your local server credentials
-        #self.myDB.createFaceTable() # to reset DB
+        self.myDB = database.vectorDB('postgres', '2518', 'PanOpticon', 'localhost')     # change this line to your local server credentials
+        #self.myDB.createTables() # to reset DB; comment this out if you don't want to reset it
 
         self.video_feed = cv2.VideoCapture(0)
         self.width = int(self.video_feed.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -55,53 +55,45 @@ class admin_window():
         p = os.path.sep.join((self.outputPath, fileName))
 
         _, frame = self.video_feed.read()
-
         if frame is not None:
 
-            brightness = it.brightness_check(frame)
+            brightness = image_tools.brightness_check(frame)
 
             if brightness > 200:   
-                frame = it.adjust_gamma(frame, 0.5)
+                frame = image_tools.adjust_gamma(frame, 0.5)
                 print("Making it darker")
-            elif brightness < 60:
-                frame = it.adjust_gamma(frame, 1.5)
+            elif brightness < 40:
+                frame = image_tools.adjust_gamma(frame, 2.5)
                 print("Making it brighter")
             else:
-                pass    # lighting is good
+                print("Lighting is good")
+                pass    
 
-            frame, _ = it.extract_face(frame, self.fdetect_model)
+            frame, _ = image_tools.extract_face(frame, self.fdetect_model)
 
             cv2.imwrite(p, frame)
             print("Frame captured")
 
             fileName = self.outputPath + "/" +  fileName
-            #print("Saved img: " + fileName)
 
         
-        # could use the name+timestamp to name captured photo
         firstName = simpledialog.askstring("Input", "First name: ")
         lastName = simpledialog.askstring("Input", "Last name: ")
-        
+
         # convert img to numpy
         img = Image.open(fileName)
         numpyImg = np.asarray(img)
 
-        # add thumbnail to DB
-        #image = cv2.imread(fileName) # cropped image of a face  
-
-        #encoding = img_to_encoding(numpyImg, self.fdetect_model)
+        #encoding = image_tools.image_to_encoding(numpyImg, self.fdetect_model)
         encoding = self.frecogi_model.infer(numpyImg)
         newFace, id = self.myDB.addFaces(firstName, lastName, encoding)
-        #newFace, id = self.myDB.addFaces(firstName, lastName, img_to_encoding(numpyImg, self.fdetect_model))
 
         if newFace:
-            self.myDB.addThumbnail(id, fileName)
-
+            self.myDB.addThumbnail(id, fileName)    # adding thumbnail to DB
 
         # display captured img
         thumbnailWindow = tki.Toplevel()
         thumbnailWindow.title("Preview Image")
-        # thumbnailWindow.geometry("300x300")
 
         img = img.resize((160,160))
         thumbnail = ImageTk.PhotoImage(img)
@@ -122,18 +114,12 @@ class admin_window():
 
         _, frame = self.video_feed.read()
         if frame is not None:
-            frame, _ = it.extract_face(frame, self.fdetect_model)
-            
-            cv2.resize(frame, (160, 160))
+            frame, _ = image_tools.extract_face(frame, self.fdetect_model)
+
             cv2.imwrite(p, frame)
             print("Frame captured")
 
             fileName = self.outputPath + "/" +  fileName
-            #print("Saved img: " + fileName)
-            
-        #firstName = simpledialog.askstring("Input", "First name: ")    # this was for using verifyID() instead of verify()
-        #lastName = simpledialog.askstring("Input", "Last name: ")
-        #fullName = firstName + ' ' + lastName
 
         # convert img to numpy
         img = Image.open(fileName)
@@ -143,28 +129,31 @@ class admin_window():
 
         this_emb = self.frecogi_model.infer(numpyImg)
 
-        for id in self.KnownEmbs.keys():
-            #print(self.KnownEmbs.keys())
+        found = False
+
+        for id in self.KnownEmbs:
         
             trg_emb = self.KnownEmbs[id]
 
             dist, is_recognised = self.frecogi_model.dist(trg_emb, this_emb)
 
             if is_recognised:
+                found = True
                 break
             else:
-                id = "stranger"
                 continue
-            
-        identity = self.myDB.verification(id)
-
-        displayText = "Hi, {} ; dist: {:.5}".format(identity, dist)
+        
+        if found:
+            identity = self.myDB.verification(id)
+            displayText = "Hi, {} ; dist: {}".format(identity, dist)
+        else:
+            identity = self.myDB.verification("stranger")
+            displayText = "Hi, stranger"
 
 
         # display captured img
         thumbnailWindow = tki.Toplevel()
         thumbnailWindow.title("Preview Image")
-        # thumbnailWindow.geometry("300x300")
 
         img = img.resize((160,160))
         thumbnail = ImageTk.PhotoImage(img)
@@ -209,14 +198,13 @@ class admin_window():
 
 
 
+    # placing UI elements
     def setupUI(self):
-        # placing UI elements
-
         self.camera_feed = tki.Label(self.root, width=1280, height=720, padx=10, pady=10)
         self.camera_feed.pack()
 
         self.btns_frame = tki.Frame(self.root)
-        self.btns_frame.grid
+        # self.btns_frame.grid
 
         self.btn_add = tki.Button(self.btns_frame, command=self.onAdd, text="add", padx=10, pady=10, background='#ACFFCA')
         self.btn_verify = tki.Button(self.btns_frame, command=self.onVerify, text="verify", padx=10, pady=10, background='#FFACAC')
@@ -229,8 +217,8 @@ class admin_window():
         self.btns_frame.pack(side="bottom")
 
 
-    def cameraLoop(self):
 
+    def cameraLoop(self):
         _, frame = self.video_feed.read()
         if not self.video_feed.isOpened():
             print("Error: could not open video feed.")
