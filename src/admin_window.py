@@ -17,8 +17,8 @@ class admin_window():
     
     def __init__(self, fd_model_path: str, fr_model_path: str) -> None:
         self.root = tki.Tk()
-        self.cwd_path = os.path.abspath(os.getcwd())
-        self.outputPath = self.cwd_path + "/images"  # where the captured images are saved - change according to your local machine
+        self.outputPath = "C:/Users/rlaal/Desktop/ByteOrbit/PanOpticon/images"  # where the captured images are saved - change according to your local machine
+        print("outputpath: " + self.outputPath)
 
         # load in detection and recognition models
         self.fdetect_model = YuNet(modelPath=fd_model_path, confThreshold=0.8)
@@ -28,7 +28,7 @@ class admin_window():
         self.root.bind("<Escape>", self.onClose)
         self.root.protocol("WM_DELETE_WINDOW", self.onClose)
         self.root.title("PanOpticon Administrator")
-        self.root.geometry("1000x500") # Admin window size
+        # self.root.geometry("1000x500") # Admin window size
 
         self.myDB = database.vectorDB('postgres', '2518', 'PanOpticon', 'localhost')     # change this line to your local server credentials
         #self.myDB.createTables() # to reset DB; comment this out if you don't want to reset it
@@ -129,6 +129,8 @@ class admin_window():
 
         this_emb = self.frecogi_model.infer(numpyImg)
 
+        found = False
+
         for id in self.KnownEmbs:
         
             trg_emb = self.KnownEmbs[id]
@@ -136,14 +138,17 @@ class admin_window():
             dist, is_recognised = self.frecogi_model.dist(trg_emb, this_emb)
 
             if is_recognised:
+                found = True
                 break
             else:
-                id = "stranger"
                 continue
-            
-        identity = self.myDB.verification(id)
-
-        displayText = "Hi, {} ; dist: {}".format(identity, dist)
+        
+        if found:
+            identity = self.myDB.verification(id)
+            displayText = "Hi, {} ; dist: {}".format(identity, dist)
+        else:
+            identity = self.myDB.verification("stranger")
+            displayText = "Hi, stranger"
 
 
         # display captured img
@@ -199,7 +204,7 @@ class admin_window():
         self.camera_feed.pack()
 
         self.btns_frame = tki.Frame(self.root)
-        self.btns_frame.grid
+        # self.btns_frame.grid
 
         self.btn_add = tki.Button(self.btns_frame, command=self.onAdd, text="add", padx=10, pady=10, background='#ACFFCA')
         self.btn_verify = tki.Button(self.btns_frame, command=self.onVerify, text="verify", padx=10, pady=10, background='#FFACAC')
@@ -221,11 +226,12 @@ class admin_window():
             return
             
         img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB) # cnverts BGR to RGB
+        img = cv2.resize(img, (1280, 720))
         img = Image.fromarray(img) # converts array to image
         imgTk = ImageTk.PhotoImage(img) # converts image to tk bitmap
 
         self.camera_frame = imgTk
-        self.camera_feed.configure(image=imgTk, height=360, width=640)
+        self.camera_feed.configure(image=imgTk, height=720, width=1280)
 
         self.camera_feed.after(10, self.cameraLoop) 
 
