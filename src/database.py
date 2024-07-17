@@ -7,9 +7,7 @@ from psycopg2 import sql
 #from pgvector.psycopg2 import register_vector   # pip install pgvector
 import pickle 
 import numpy as np 
-import tensorflow as tf
-
-
+# import tensorflow as tf   
 
 class vectorDB:     # can be improved using actual vector DB
 
@@ -354,7 +352,7 @@ class vectorDB:     # can be improved using actual vector DB
         allEncodings = self.fetchEncodings() # this returns dictionary {ID: encoding}
         
         for encoding in allEncodings.values():
-            dist = np.linalg.norm(tf.subtract(encoding, capturedEncoding))
+            # dist = np.linalg.norm(tf.subtract(encoding, capturedEncoding))
 
             if dist < min_dist:
                 min_dist = dist
