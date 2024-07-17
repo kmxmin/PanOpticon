@@ -1,7 +1,5 @@
 # PanOpticon (prototype)
 
-Hey MIn, heres some instructions to get up and running with the python scripts I wrote.
-
 ## Setting up the virtual environment
 
 First run the following to initalise the virtual environment.
@@ -32,8 +30,10 @@ python3 src/Peekaboo.py
 
 ## Python Scripts and what they (should) do
 
-* **Peekaboo.py**: is the actual application with the gui and all. This is what the final product/project is as an executable.
-* **cropper.py:**  is a cropping tool that made using mtcnn
-* **scratch.py**: is just a scratch file. Ignore it
-* **facenet.py:** is a package that does the facial recognition/verification
-* **camerastream_client.py**: is just camera tool that
+* **main.py**: is the actual application with the gui and all. This is what the final product/project is as an executable.
+* **admin_window.py**: administrative side of the application where you can add faces to database and verify who the person is. You can also check the event log.
+* **camera.py**: 'client' side of the application 
+* **database.py**: everything database related from creating and connecting to (existing) database and querying it to store and fetch faces.
+* **image_tools.py**: used for gamma correcting of the captured images and cropping the face in captured images.
+* **sface.py**:
+* **yunet.py**:
