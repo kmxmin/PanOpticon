@@ -6,9 +6,6 @@ import psycopg2 # make sure to install postgreSQL on your machine
 from psycopg2 import sql
 import pickle 
 import numpy as np 
-import tensorflow as tf
-
-
 
 class vectorDB:     # can be improved using actual vector DB
 
