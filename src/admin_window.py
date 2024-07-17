@@ -6,8 +6,8 @@ import os
 import datetime
 
 import database
-from image_tools import *
-# from facenet import *
+import image_tools as it
+import numpy as np
 
 from yunet import YuNet
 from sface import SFace
@@ -28,7 +28,7 @@ class admin_window():
         self.root.bind("<Escape>", self.onClose)
         self.root.protocol("WM_DELETE_WINDOW", self.onClose)
         self.root.title("PanOpticon Administrator")
-        self.root.geometry("1000x500") # window size
+        # self.root.geometry("1000x500") # window size
 
         self.myDB = database.vectorDB('postgres', 'hotwheels', 'FaceDetection', 'localhost')     # change this line to your local server credentials
         #self.myDB.createFaceTable() # to reset DB
@@ -58,18 +58,18 @@ class admin_window():
 
         if frame is not None:
 
-            # brightness = brightness_check(frame)
+            brightness = it.brightness_check(frame)
 
-            # if brightness > 200:   
-            #     frame = adjust_gamma(frame, 0.5)
-            #     print("Making it darker")
-            # elif brightness < 60:
-            #     frame = adjust_gamma(frame, 1.5)
-            #     print("Making it brighter")
-            # else:
-            #     pass    # lighting is good
+            if brightness > 200:   
+                frame = it.adjust_gamma(frame, 0.5)
+                print("Making it darker")
+            elif brightness < 60:
+                frame = it.adjust_gamma(frame, 1.5)
+                print("Making it brighter")
+            else:
+                pass    # lighting is good
 
-            frame, _ = extract_face(frame, self.fdetect_model)
+            frame, _ = it.extract_face(frame, self.fdetect_model)
 
             cv2.imwrite(p, frame)
             print("Frame captured")
@@ -101,8 +101,9 @@ class admin_window():
         # display captured img
         thumbnailWindow = tki.Toplevel()
         thumbnailWindow.title("Preview Image")
-        thumbnailWindow.geometry("300x300")
+        # thumbnailWindow.geometry("300x300")
 
+        img = img.resize((160,160))
         thumbnail = ImageTk.PhotoImage(img)
         panel = tki.Label(thumbnailWindow, image = thumbnail)
         panel.image = thumbnail
@@ -121,7 +122,7 @@ class admin_window():
 
         _, frame = self.video_feed.read()
         if frame is not None:
-            frame, _ = extract_face(frame, self.fdetect_model)
+            frame, _ = it.extract_face(frame, self.fdetect_model)
             
             cv2.resize(frame, (160, 160))
             cv2.imwrite(p, frame)
@@ -157,14 +158,15 @@ class admin_window():
             
         identity = self.myDB.verification(id)
 
-        displayText = "Hi, {} ; dist: {}".format(identity, dist)
+        displayText = "Hi, {} ; dist: {:.5}".format(identity, dist)
 
 
         # display captured img
         thumbnailWindow = tki.Toplevel()
         thumbnailWindow.title("Preview Image")
-        thumbnailWindow.geometry("300x300")
+        # thumbnailWindow.geometry("300x300")
 
+        img = img.resize((160,160))
         thumbnail = ImageTk.PhotoImage(img)
         panel = tki.Label(thumbnailWindow, image = thumbnail)
         panel.image = thumbnail
@@ -210,7 +212,7 @@ class admin_window():
     def setupUI(self):
         # placing UI elements
 
-        self.camera_feed = tki.Label(self.root, width=self.width, height=self.height, padx=10, pady=10)
+        self.camera_feed = tki.Label(self.root, width=1280, height=720, padx=10, pady=10)
         self.camera_feed.pack()
 
         self.btns_frame = tki.Frame(self.root)
@@ -227,7 +229,6 @@ class admin_window():
         self.btns_frame.pack(side="bottom")
 
 
-
     def cameraLoop(self):
 
         _, frame = self.video_feed.read()
@@ -237,12 +238,12 @@ class admin_window():
             return
             
         img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB) # cnverts BGR to RGB
-        #img = cv2.resize(img, (650, 650))
+        img = cv2.resize(img, (1280, 720))
         img = Image.fromarray(img) # converts array to image
         imgTk = ImageTk.PhotoImage(img) # converts image to tk bitmap
 
         self.camera_frame = imgTk
-        self.camera_feed.configure(image=imgTk, height=360, width=640)
+        self.camera_feed.configure(image=imgTk, height=720, width=1280)
 
         self.camera_feed.after(10, self.cameraLoop) 
 
