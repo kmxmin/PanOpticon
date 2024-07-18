@@ -118,7 +118,7 @@ class Camera():
 
         print("{} face(s) loaded...".format(numOfFaces))
         
-        print(self.KnownEmbs)
+        #print(self.KnownEmbs)
 
         return self.KnownEmbs
 
