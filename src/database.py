@@ -7,6 +7,8 @@ from psycopg2 import sql
 import pickle 
 import numpy as np 
 
+
+
 class vectorDB:     # can be improved using actual vector DB
 
     # connects to db
@@ -98,6 +100,32 @@ class vectorDB:     # can be improved using actual vector DB
 
 
 
+    # calculate the mean encoding
+    def updateMeanEncoding(self, id : str, encoding : np, firstName : str):
+        cursor = self.conn.cursor()
+
+        fetch_query = "SELECT encoding, timesAdded FROM Encoding WHERE id = %s"
+        cursor.execute(fetch_query, (id,))
+        meanEncoding, timesAdded = cursor.fetchone()
+
+        unpickledMeanEncoding = pickle.loads(meanEncoding)     # back to numpy for calculation
+        unpickledMeanEncoding = unpickledMeanEncoding * timesAdded
+        unpickledMeanEncoding = np.add(unpickledMeanEncoding, encoding) / timesAdded    # this gets the mean encoding
+
+        pickledEncoding = pickle.dumps(unpickledMeanEncoding) # dumps() serialises an object
+
+        updateEncodingQuery = ("UPDATE Encoding SET encoding = %s, timesAdded = timesAdded + 1 WHERE id = %s")
+        cursor.execute(updateEncodingQuery, (pickledEncoding, id))
+
+        logEvent = ("INSERT INTO Events (ID, description) VALUES (%s, %s)")
+        description = "Old face {} was used to update Faces table.".format(firstName)
+        eventQuery = (id, description)
+        cursor.execute(logEvent, eventQuery)
+
+        cursor.close()
+
+
+
     # adds/updates encoding to/of Faces table
     def addFaces(self, firstName : str, lastName : str, encoding : np) -> tuple:  # returns isNewFace : bool and id : str
         cursor = self.conn.cursor()
@@ -129,24 +157,7 @@ class vectorDB:     # can be improved using actual vector DB
                     id = row[0]
                     #print("Old face {}'s ID: {}".format(firstName, id))
 
-                fetch_query = "SELECT encoding, timesAdded FROM Encoding WHERE id = %s"
-                cursor.execute(fetch_query, (id,))
-                meanEncoding, timesAdded = cursor.fetchone()
-
-                unpickledMeanEncoding = pickle.loads(meanEncoding)     # back to numpy for calculation
-                unpickledMeanEncoding = unpickledMeanEncoding * timesAdded
-                unpickledMeanEncoding = np.add(unpickledMeanEncoding, encoding) / timesAdded    # this gets the mean encoding
-
-                pickledEncoding = pickle.dumps(unpickledMeanEncoding) # dumps() serialises an object
-
-                updateEncodingQuery = ("UPDATE Encoding SET encoding = %s, timesAdded = timesAdded + 1 WHERE id = %s")
-                cursor.execute(updateEncodingQuery, (pickledEncoding, id))
-
-
-                logEvent = ("INSERT INTO Events (ID, description) VALUES (%s, %s)")
-                description = "Old face {} was used to update Faces table.".format(firstName)
-                eventQuery = (id, description)
-                cursor.execute(logEvent, eventQuery)
+                self.updateMeanEncoding(id, encoding, firstName)
 
                 print("Successfully added {}'s encoding to db!".format(firstName))
 
