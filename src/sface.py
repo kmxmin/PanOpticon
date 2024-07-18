@@ -4,8 +4,8 @@
 # Copyright (C) 2021, Shenzhen Institute of Artificial Intelligence and Robotics for Society, all rights reserved.
 # Third party copyrights are property of their respective owners.
 
-import numpy as np
 import cv2 as cv
+
 
 class SFace:
     def __init__(self, modelPath, disType=0, backendId=0, targetId=0):
@@ -16,10 +16,14 @@ class SFace:
             model=self._modelPath,
             config="",
             backend_id=self._backendId,
-            target_id=self._targetId)
+            target_id=self._targetId,
+        )
 
-        self._disType = disType # 0: cosine similarity, 1: Norm-L2 distance
-        assert self._disType in [0, 1], "0: Cosine similarity, 1: norm-L2 distance, others: invalid"
+        self._disType = disType  # 0: cosine similarity, 1: Norm-L2 distance
+        assert self._disType in [
+            0,
+            1,
+        ], "0: Cosine similarity, 1: norm-L2 distance, others: invalid"
 
         self._threshold_cosine = 0.363
         self._threshold_norml2 = 1.128
@@ -35,7 +39,8 @@ class SFace:
             model=self._modelPath,
             config="",
             backend_id=self._backendId,
-            target_id=self._targetId)
+            target_id=self._targetId,
+        )
 
     def _preprocess(self, image, bbox):
         if bbox is None:
@@ -55,18 +60,15 @@ class SFace:
         feature1 = self.infer(image1, face1)
         feature2 = self.infer(image2, face2)
 
-        if self._disType == 0: # COSINE
-            cosine_score = self._model.match(feature1, feature2, self._disType)
-            return cosine_score, 1 if cosine_score >= self._threshold_cosine else 0
-        else: # NORM_L2
-            norml2_distance = self._model.match(feature1, feature2, self._disType)
-            return norml2_distance, 1 if norml2_distance <= self._threshold_norml2 else 0
+        return self.dist(feature1, feature2)
 
     def dist(self, emb1, emb2):
-        # same as match, just skips infer step and uses embeddings directly
-        if self._disType == 0: # COSINE
+        # calculates the distance measure of the two input embeddings
+        if self._disType == 0:  # COSINE
             cosine_score = self._model.match(emb1, emb2, self._disType)
             return cosine_score, 1 if cosine_score >= self._threshold_cosine else 0
-        else: # NORM_L2
+        else:  # NORM_L2
             norml2_distance = self._model.match(emb1, emb2, self._disType)
-            return norml2_distance, 1 if norml2_distance <= self._threshold_norml2 else 0
+            return norml2_distance, (
+                1 if norml2_distance <= self._threshold_norml2 else 0
+            )
