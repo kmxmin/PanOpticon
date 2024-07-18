@@ -9,38 +9,33 @@ import numpy as np
 
 
 
-class vectorDB:     # can be improved using actual vector DB
+class Database: 
 
-    # connects to db
-    def __init__(self, user : str, password : str, database : str, host = 'localhost'): # if host not given, uses localhost
+    # connects to database
+    def __init__(self, user : str, password : str, database : str, host = 'localhost'):
         self.user = user
         self.password = password 
         self.database = database
         self.host = host
 
         self.conn = psycopg2.connect(user=self.user, password=self.password, host=self.host)
-        
-        print("Connection established :)")
-
         self.conn.set_session(autocommit=True)
     
         cursor = self.conn.cursor()
 
-        cursor.execute(sql.SQL("SELECT 1 FROM pg_catalog.pg_database WHERE datname = %s"), [database]) # checks if db with this name exists; if not create new
+        # checks if this database exists; if not create new
+        cursor.execute(sql.SQL("SELECT 1 FROM pg_catalog.pg_database WHERE datname = %s"), [database]) 
 
         exists = cursor.fetchone()
         
         if not exists:
-            cursor.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(database)))  # ensures no duplicate DB is created
-            print("Database: {} successfully created!".format(database))
-        else:
-            print("Successfully connected to database: {}!".format(database)) 
+            # ensures no duplicate database is created
+            cursor.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(database)))  
 
     
 
     # used to initialise tables; otherwise could be used to reset the DB
-    # tableName is set to 'Faces'
-    def createTables(self):
+    def create_tables(self):
         cursor = self.conn.cursor()
 
         # deletes table if exists
@@ -69,7 +64,7 @@ class vectorDB:     # can be improved using actual vector DB
             timesAdded INT
             )
             """
-        )
+        )   # timesAdded to keep track of how many times the encoding of a person were updated
 
         cursor.execute(
             """
@@ -82,17 +77,15 @@ class vectorDB:     # can be improved using actual vector DB
             """
         )
 
-        print("Successfully created tables: Faces & Encoding & Events!")
-
         cursor.close()
 
 
 
     # add thumbnail img to row in Faces - called when registering new Face
-    def addThumbnail(self, id : str, imgPath : str):
+    def add_thumbnail(self, faceID : str, imgPath : str):
         cursor = self.conn.cursor()
         
-        cursor.execute("UPDATE Faces SET thumbnail = %s WHERE ID = %s", (imgPath, id))
+        cursor.execute("UPDATE Faces SET thumbnail = %s WHERE ID = %s", (imgPath, faceID))
 
         print("Successfully added thumbnail!")
 
@@ -100,150 +93,126 @@ class vectorDB:     # can be improved using actual vector DB
 
 
 
-    # calculate the mean encoding
-    def updateMeanEncoding(self, id : str, encoding : np, firstName : str):
+    # calculate the mean encoding and update Encoding table
+    def update_mean_encoding(self, faceID : str, encoding : np, first_name : str):
         cursor = self.conn.cursor()
 
         fetch_query = "SELECT encoding, timesAdded FROM Encoding WHERE id = %s"
-        cursor.execute(fetch_query, (id,))
-        meanEncoding, timesAdded = cursor.fetchone()
+        cursor.execute(fetch_query, (faceID,))
+        mean_encoding, timesAdded = cursor.fetchone()
 
-        unpickledMeanEncoding = pickle.loads(meanEncoding)     # back to numpy for calculation
-        unpickledMeanEncoding = unpickledMeanEncoding * timesAdded
-        unpickledMeanEncoding = np.add(unpickledMeanEncoding, encoding) / timesAdded    # this gets the mean encoding
+        unpickled_mean_encoding = pickle.loads(mean_encoding)     # back to numpy for calculation
+        unpickled_mean_encoding = unpickled_mean_encoding * timesAdded
+        unpickled_mean_encoding = np.add(unpickled_mean_encoding, encoding) / timesAdded    # this gets the mean encoding
 
-        pickledEncoding = pickle.dumps(unpickledMeanEncoding) # dumps() serialises an object
+        pickled_encoding = pickle.dumps(unpickled_mean_encoding) # dumps() serialises an object
 
-        updateEncodingQuery = ("UPDATE Encoding SET encoding = %s, timesAdded = timesAdded + 1 WHERE id = %s")
-        cursor.execute(updateEncodingQuery, (pickledEncoding, id))
+        update_encoding_query = ("UPDATE Encoding SET encoding = %s, timesAdded = timesAdded + 1 WHERE id = %s")
+        cursor.execute(update_encoding_query, (pickled_encoding, faceID))
 
         logEvent = ("INSERT INTO Events (ID, description) VALUES (%s, %s)")
-        description = "Old face {} was used to update Faces table.".format(firstName)
-        eventQuery = (id, description)
-        cursor.execute(logEvent, eventQuery)
+        description = "Old face {} was used to update Faces table.".format(first_name)
+        event_query = (faceID, description)
+        cursor.execute(logEvent, event_query)
+
+        cursor.close()
+
+
+
+    # id is created uniquely using 5 letters of full name & 3 digits number (000); e.g. Min Kim would be KmMin001
+    def assign_face_ID(self, first_name : str, last_name : str) -> str:
+        
+        faceID = last_name[0] + last_name[-1]
+        if len(first_name) < 3:
+            faceID += first_name + 'X'
+        else:
+            faceID += first_name[0] + first_name[1] + first_name[2]
+
+        return faceID
+
+
+
+    # add new face to Faces table & update the mean encoding in Encoding table
+    def add_new_face(self, faceID : str, first_name : str, last_name : str, encoding : np, count=1) -> None:
+        cursor = self.conn.cursor()
+
+        addFace = ("INSERT INTO Faces (ID, firstName, lastName) VALUES (%s, %s, %s)")
+
+        # count represents the number proceeding the faceID
+        if count < 10:      # we assume that there won't be more than 999 people with same id
+            faceID += "00" + str(count)
+        elif count < 100:
+            faceID += "0" + str(count)
+        else:
+            faceID += str(count)
+
+        cursor.execute(addFace, (faceID, first_name, last_name))
+
+        pickled_encoding = pickle.dumps(encoding) # dumps() serialises an object
+
+        add_encoding = ("INSERT INTO Encoding (ID, encoding, timesAdded) VALUES (%s, %s, 1)")    # new face thus first time being added; timesAdded = 1
+        encoding_query = (faceID, pickled_encoding)
+        cursor.execute(add_encoding, encoding_query)
+
+        log_event = ("INSERT INTO Events (ID, description) VALUES (%s, %s)")
+        description = "New face {} added to Encoding table.".format(first_name)
+        event_query = (faceID, description)
+        cursor.execute(log_event, event_query)
 
         cursor.close()
 
 
 
     # adds/updates encoding to/of Faces table
-    def addFaces(self, firstName : str, lastName : str, encoding : np) -> tuple:  # returns isNewFace : bool and id : str
+    def add_faces(self, first_name : str, last_name : str, encoding : np) -> tuple:  # returns is_new_face : bool and id : str
         cursor = self.conn.cursor()
 
-        # id is created uniquely using 5 letters of full name & 3 digit number (000); e.g. Min Kim would be KmMin001
-        id = lastName[0] + lastName[-1]
-        if len(firstName) < 3:
-            id += firstName + 'X'
-        else:
-            id += firstName[0] + firstName[1] + firstName[2]
+        faceID = self.assign_face_ID(first_name, last_name)
 
-
-        cursor.execute("SELECT COUNT(*) FROM Faces WHERE ID LIKE %s", (id + '%',))
+        cursor.execute("SELECT COUNT(*) FROM Faces WHERE ID LIKE %s", (faceID + '%',))
         count = cursor.fetchone()[0]
 
 
         # if there are people with same id, check if it's the same person
-        # for now, we assume if their full names match, it's the same person. but this needs to be changed - could be improved
+        # for now, we assume if their full names match, it's the same person
         if count > 0:
             cursor.execute("SELECT ID FROM Faces WHERE ID LIKE %s AND firstName = %s AND lastName = %s", 
-                           (id + '%', firstName, lastName))
-            matchingRows = cursor.fetchall()
+                           (faceID + '%', first_name, last_name))
+            matching_rows = cursor.fetchall()
 
-            if matchingRows:
-                print("There is already a person with the same id and full name.")
+            if matching_rows:
+                # if it is registered face, just update the mean encoding
+                for row in matching_rows:
+                    faceID = row[0]
 
-                # don't add them to Faces table; only update the encoding
-                for row in matchingRows:
-                    id = row[0]
-                    #print("Old face {}'s ID: {}".format(firstName, id))
-
-                self.updateMeanEncoding(id, encoding, firstName)
-
-                print("Successfully added {}'s encoding to db!".format(firstName))
+                self.update_mean_encoding(faceID, encoding, first_name)
 
                 cursor.close()
-                
+
                 return False, ''
-            
-            # there are people with same ID, but with different names
             else:
-
-                addFace = ("INSERT INTO Faces (ID, firstName, lastName) VALUES (%s, %s, %s)")
-
-                count += count
-                if count < 10:      # this block assumes that there won't be more than 999 people with same id
-                    id += "00" + str(count)
-                elif count < 100:
-                    id += "0" + str(count)
-                else:
-                    id += str(count)
-                print("New face {}'s new ID is: ".format(firstName) + id)
-
-                cursor.execute(addFace, (id, firstName, lastName))
-                print("Successfully added {} with ID: {} to db!".format(firstName, id))
-
-                # now add pickledEncoding
-                pickledEncoding = pickle.dumps(encoding) # dumps() serialises an object
-
-                addEncoding = ("INSERT INTO Encoding (ID, encoding, timesAdded) VALUES (%s, %s, 1)")    # new face thus first time being added; timesAdded = 1
-                encodingQuery = (id, pickledEncoding)
-                cursor.execute(addEncoding, encodingQuery)
-
-                logEvent = ("INSERT INTO Events (ID, description) VALUES (%s, %s)")
-                description = "New face {} added to Encoding table.".format(firstName)
-                eventQuery = (id, description)
-                cursor.execute(logEvent, eventQuery)
-
-                print("Successfully added {}'s encoding to db!".format(firstName))
+                # there are people with same ID, but with different names
+                self.add_new_face(faceID, first_name, last_name, encoding, (count+1))
 
                 cursor.close()
 
-                return True, id # then add thumbnail
-                
+                return True, faceID # then add thumbnail
         else:
-            # new Face! - proceed to add their face to Faces table
-            addFace = ("INSERT INTO Faces (ID, firstName, lastName) VALUES (%s, %s, %s)")
-
-            count = 1  # 001 is the first person with that id
-            if count < 10:      # this block assumes that there won't be more than 999 people with same id
-                id += "00" + str(count)
-            elif count < 100:
-                id += "0" + str(count)
-            else:
-                id += str(count)
-            print("New face {}'s new ID is: ".format(firstName) + id)
-
-            cursor.execute(addFace, (id, firstName, lastName))
-            print("Successfully added {} with ID: {} to db!".format(firstName, id))
-
-            # now add pickledEncoding
-            pickledEncoding = pickle.dumps(encoding) # dumps() serialises an object
-
-            addEncoding = ("INSERT INTO Encoding (ID, encoding, timesAdded) VALUES (%s, %s, 1)")    # new face thus first time being added; timesAdded = 1
-            encodingQuery = (id, pickledEncoding)
-            cursor.execute(addEncoding, encodingQuery)
-
-            logEvent = ("INSERT INTO Events (ID, description) VALUES (%s, %s)")
-            description = "New face {} added to Encoding table.".format(firstName)
-            eventQuery = (id, description)
-            cursor.execute(logEvent, eventQuery)
-
-            print("Successfully added {}'s encoding to db!".format(firstName))
+            # there is no one with same ID
+            self.add_new_face(faceID, first_name, last_name, encoding)
 
             cursor.close()
 
-            return True, id # then add thumbnail
+            return True, faceID
         
     
 
     # prints/returns the number of registered faces
-    def numOfFaces(self):
+    def num_of_faces(self) -> int:
         cursor = self.conn.cursor()
 
         cursor.execute("SELECT COUNT(*) FROM Faces")
         count = cursor.fetchone()[0]
-
-        print("There are {} faces on Faces table.".format(count))
 
         cursor.close()
 
@@ -252,25 +221,23 @@ class vectorDB:     # can be improved using actual vector DB
 
 
     # returns dictionary of encodings for all the registered faces {id:encoding}
-    def fetchEncodings(self):
+    def fetch_encodings(self) -> tuple:
         cursor = self.conn.cursor()
 
         try:
             cursor.execute("SELECT ID, encoding FROM Encoding")
-            
-            # Fetch all results
+   
             results = cursor.fetchall()
             
             result = {}
             for row in results:
-                id, encoding = row
-                unpickledEncoding = pickle.loads(encoding)     # back to numpy
-                result[id] = unpickledEncoding
+                faceID, encoding = row
+                unpickled_encoding = pickle.loads(encoding)     # back to numpy
+                result[faceID] = unpickled_encoding
 
             return result
 
         except psycopg2.Error as e:
-            print("Error executing query:", e)
             self.conn.rollback()
 
         cursor.close()
@@ -278,34 +245,33 @@ class vectorDB:     # can be improved using actual vector DB
 
     
     # returns dictionary of encodings for specified person {id:encoding}
-    def fetchEncodingOf(self, identity : str):
+    def fetch_encoding_of(self, identity : str) -> tuple:
         cursor = self.conn.cursor()
 
-        fullName = identity.split()
-        firstName = fullName[0]
-        lastName = fullName[1]
+        full_name = identity.split()
+        first_name = full_name[0]
+        last_name = full_name[1]
 
-        cursor.execute("SELECT ID FROM Faces WHERE firstName=%s AND lastName=%s", (firstName, lastName))
+        cursor.execute("SELECT ID FROM Faces WHERE firstName=%s AND lastName=%s", (first_name, last_name))
         results = cursor.fetchone()
         try:
             if results:
                 # if person exists on db, get their id
-                id = results[0]
-                print("{} found with id: {}".format(firstName, id))
+                faceID = results[0]
+                print("{} found with id: {}".format(first_name, faceID))
 
-                query = ("SELECT encoding FROM Encoding WHERE ID='{}'".format(id))
+                query = ("SELECT encoding FROM Encoding WHERE ID='{}'".format(faceID))
                 cursor.execute(query)
 
                 encoding = cursor.fetchone()[0]
-                unpickledEncoding = pickle.loads(encoding)     # back to numpy
+                unpickled_encoding = pickle.loads(encoding)     # back to numpy
 
                 result = {}
-                result[id] = unpickledEncoding
+                result[faceID] = unpickled_encoding
 
                 return result
 
         except psycopg2.Error as e:
-            print("Error executing query:", e)
             self.conn.rollback()
 
         cursor.close()
@@ -313,49 +279,47 @@ class vectorDB:     # can be improved using actual vector DB
         
     
     # adds verification log onto Events table; verification happens in admin_window.onVerify()
-    def verification(self, id) -> str:
+    def verification(self, faceID) -> str:
         cursor = self.conn.cursor()
-        logEvent = ("INSERT INTO Events (ID, description) VALUES (%s, %s)")
+        log_event = ("INSERT INTO Events (ID, description) VALUES (%s, %s)")
 
-        if id == "stranger":
+        if faceID == "stranger":
             description = "Unregistered face tried to verify on the system."
-            eventQuery = "INSERT INTO Events (description) VALUES (%s)"
-            cursor.execute(eventQuery, (description,))
-
+            event_query = "INSERT INTO Events (description) VALUES (%s)"
+            cursor.execute(event_query, (description,))
 
             cursor.close()
 
-            return id
+            return faceID
         
         else:
             cursor.execute("SELECT (firstName) FROM Faces WHERE ID = '{}'".format(id))
-            firstName = cursor.fetchone()[0]
+            first_name = cursor.fetchone()[0]
             
-            description = "{} was verified on the system.".format(firstName)
-            
-            eventQuery = (id, description)
-            cursor.execute(logEvent, eventQuery)
+            description = "{} was verified on the system.".format(first_name)
+            event_query = (faceID, description)
+            cursor.execute(log_event, event_query)
 
             cursor.close()
 
-            return firstName
+            return first_name
 
 
 
-    def fetchEventLogs(self) -> str:
+    def fetch_event_logs(self) -> str:
         cursor = self.conn.cursor()
 
         cursor.execute("SELECT (description, timestamp) FROM Events")
-        eventLogs = cursor.fetchall()
+        event_logs = cursor.fetchall()
 
         result = ''
 
-        if not eventLogs:
+        if not event_logs:
             cursor.close()
             return "The system is new! No event was logged."
         
         else:
-            for row in eventLogs:
+            for row in event_logs:
                 for tup in row:
                     result += str(tup) + ' '
                 result += '\n'
@@ -363,7 +327,19 @@ class vectorDB:     # can be improved using actual vector DB
             cursor.close()
             return result
         
-    
+
+
+    def fetch_name(self, faceID : str):
+        cursor = self.conn.cursor()
+        
+        cursor.execute("SELECT (firstName) FROM Faces WHERE id = '{}'".format(faceID))
+        first_name = cursor.fetchone()[0]
+
+        cursor.close()
+
+        return first_name
+        
+
         
     def close_conn(self):
         self.conn.close()
