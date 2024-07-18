@@ -10,16 +10,21 @@ from database import vectorDB
 from yunet import YuNet
 from sface import SFace
 
+class Camera:
+    """
+    Camera window class. Used for real time face detection and indentification
+    """
 
-class Camera():
     def __init__(self, fd_model_path: str, fr_model_path: str, camera=0) -> None:
 
         # load in detection and recognition models
-        self.fdetect_model = YuNet(modelPath=fd_model_path, confThreshold=0.8)
+        self.fdetect_model = YuNet(modelPath=fd_model_path, confThreshold=0.9)
         self.frecogi_model = SFace(modelPath=fr_model_path, disType=1)
         print("models loaded...")
 
-        self.myDB = vectorDB('postgres', '2518', 'FaceDetection', 'localhost')  # connect to DB
+        self.myDB = vectorDB(
+            "postgres", "2518", "FaceDetection", "localhost"
+        )  # connect to DB
         self.loadKnownFaces()
 
         self.vid_stream = cv2.VideoCapture(camera)
@@ -45,7 +50,7 @@ class Camera():
                 print("no frame :(")
                 break
 
-            elif cv2.waitKey(1) & 0xFF == ord('q'):
+            elif cv2.waitKey(1) & 0xFF == ord("q"):
                 self.vid_stream.release
                 break
 
@@ -75,7 +80,7 @@ class Camera():
         return name_tag, dist, is_recognised
 
     def visualize(self, img, results, fps=None) -> np.ndarray:
-        # adds fps counter and time 
+        # adds fps counter and time
         # adds bounding boxes and name tags
 
         output = img.copy()
@@ -94,19 +99,46 @@ class Camera():
             if is_recognised:
 
                 cv2.rectangle(output, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                cv2.putText(output, f"{name} dist: {dist:.2f}", (x1 + 5, y1 - 15), 1, 1, (0, 255, 0))
+                cv2.putText(
+                    output,
+                    f"{name} dist: {dist:.2f}",
+                    (x1 + 5, y1 - 15),
+                    1,
+                    1,
+                    (0, 255, 0),
+                )
 
             else:
 
                 cv2.rectangle(output, (x1, y1), (x2, y2), (0, 0, 255), 2)
-                cv2.putText(output, f"{name} dist: {dist:.2f}", (x1 + 5, y1 - 15), 1, 1, (0, 255, 255))
+                cv2.putText(
+                    output,
+                    f"{name} dist: {dist:.2f}",
+                    (x1 + 5, y1 - 15),
+                    1,
+                    1,
+                    (0, 255, 255),
+                )
 
         # add time and fps counter
         curr_time = datetime.now()
 
-        cv2.putText(output, f"{curr_time.strftime('%Y-%m-%d %H:%M:%S')}", (5, 15), fontFace=1, fontScale=1,
-                    color=(0, 255, 0))
-        cv2.putText(output, f"{fps:.2f} frames/sec", (5, 30), fontFace=1, fontScale=1, color=(0, 255, 0))
+        cv2.putText(
+            output,
+            f"{curr_time.strftime('%Y-%m-%d %H:%M:%S')}",
+            (5, 15),
+            fontFace=1,
+            fontScale=1,
+            color=(0, 255, 0),
+        )
+        cv2.putText(
+            output,
+            f"{fps:.2f} frames/sec",
+            (5, 30),
+            fontFace=1,
+            fontScale=1,
+            color=(0, 255, 0),
+        )
 
         return output
 
@@ -119,7 +151,7 @@ class Camera():
 
         print("{} face(s) loaded...".format(numOfFaces))
 
-        #print(self.KnownEmbs)
+        # print(self.KnownEmbs)
 
         return self.KnownEmbs
 
