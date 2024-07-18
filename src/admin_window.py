@@ -31,7 +31,7 @@ class admin_window():
         # self.root.geometry("1000x500") # Admin window size
 
         self.myDB = database.vectorDB('postgres', '2518', 'PanOpticon', 'localhost')     # change this line to your local server credentials
-        #self.myDB.createTables() # to reset DB; comment this out if you don't want to reset it
+        self.myDB.createTables() # to reset DB; comment this out if you don't want to reset it
 
         self.video_feed = cv2.VideoCapture(0)
         self.width = int(self.video_feed.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -84,7 +84,6 @@ class admin_window():
         img = Image.open(fileName)
         numpyImg = np.asarray(img)
 
-        #encoding = image_tools.image_to_encoding(numpyImg, self.fdetect_model)
         encoding = self.frecogi_model.infer(numpyImg)
         newFace, id = self.myDB.addFaces(firstName, lastName, encoding)
 
@@ -129,7 +128,7 @@ class admin_window():
 
         this_emb = self.frecogi_model.infer(numpyImg)
 
-                is_recognised = False
+        is_recognised = False
 
         for id in self.KnownEmbs:
         
@@ -139,7 +138,12 @@ class admin_window():
 
             if is_recognised:
                 identity = self.myDB.verification(id)
-                displayText = "Hi, {} ; dist: {}".format(identity, dist)
+                displayText = "Hi, {}".format(identity)
+
+                # if dist < 0.7 then add to mean encoding
+                if dist < 0.7:
+                    self.myDB.updateMeanEncoding(id, this_emb, identity)
+
                 break
             else:
                 continue
