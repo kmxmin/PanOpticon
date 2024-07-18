@@ -21,7 +21,7 @@ def main(args: list[str]):
 
         if args[1] == "a":
             # run admin
-            admin_obj = admin_window()
+            admin_obj = admin_window(FD_MODEL_PATH, FR_MODEL_PATH)
         
         elif args[1] == "h":
             cameras = camera.get_avail_cameras()

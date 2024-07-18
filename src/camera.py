@@ -98,7 +98,7 @@ class Camera():
 
             else:
 
-                cv2.rectangle(output, (x1, y1), (x2, y2), (0,255,255), 2)
+                cv2.rectangle(output, (x1, y1), (x2, y2), (0,0,255), 2)
                 cv2.putText(output, f"{name} dist: {dist:.2f}", (x1+5,y1-15), 1, 1, (0,255,255))
                     
         # add time and fps counter
@@ -121,3 +121,20 @@ class Camera():
         print(self.KnownEmbs)
 
         return self.KnownEmbs
+
+def get_avail_cameras() -> list:
+
+    output = list()
+    up_to = 10
+
+    # check upto first 10 cameras
+    for i in range(up_to):
+        cap = cv2.VideoCapture(i)
+
+        if cap.read()[0]:
+            output.append(i)
+            cap.release()
+        else:
+            break
+
+    return output
