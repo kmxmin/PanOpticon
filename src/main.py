@@ -1,32 +1,41 @@
 
 import cv2
+import camera
+import sys
 
 from camera import Camera
 from admin_window import admin_window
-from yunet import YuNet
 
 import image_tools
 
 FD_MODEL_PATH = "model/face_detection_yunet_2023mar.onnx"
 FR_MODEL_PATH = "model/face_recognition_sface_2021dec.onnx"
 
-def main():
+def main(args: list[str]): 
 
-    # admin_obj = admin_window()
+    if len(args) == 1:
+        camera_obj0 = Camera(FD_MODEL_PATH, FR_MODEL_PATH, camera=0)
+        camera_obj0.camera_loop()
 
-    # camera_obj = Camera(FD_MODEL_PATH, FR_MODEL_PATH)
-    # camera_obj.camera_loop()
+    elif len(args) == 2:
 
-    src_img = cv2.imread("src/test.jpg")
+        if args[1] == "a":
+            # run admin
+            admin_obj = admin_window()
+        
+        elif args[1] == "h":
+            cameras = camera.get_avail_cameras()
+            print(cameras)
 
-    fd_model.setInputSize([src_img.shape[1], src_img.shape[0]])
+        elif args[1].isnumeric:
+            camera_id = int(args[1])
+            camera_obj0 = Camera(FD_MODEL_PATH, FR_MODEL_PATH, camera=camera_id)
+            camera_obj0.camera_loop()
 
-    img, num_faces = image_tools.extract_face(src_img, fd_model)
+    print("good bye ;)")
 
-    print(img)
-
-    cv2.imshow(f"numfaces {num_faces}", img)
-    cv2.imwrite("out.jpg", img)
 
 if __name__ == "__main__":
-    main()
+    args = sys.argv
+    
+    main(args)
