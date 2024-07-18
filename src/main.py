@@ -6,7 +6,6 @@ import sys
 from camera import Camera
 from admin_window import admin_window
 
-import image_tools
 
 FD_MODEL_PATH = "model/face_detection_yunet_2023mar.onnx"
 FR_MODEL_PATH = "model/face_recognition_sface_2021dec.onnx"
