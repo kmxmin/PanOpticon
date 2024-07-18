@@ -22,7 +22,7 @@ class Camera:
         self.frecogi_model = SFace(modelPath=fr_model_path, disType=1)
         print("models loaded...")
 
-        self.myDB = vectorDB(
+        self.my_db = vectorDB(
             "postgres", "2518", "FaceDetection", "localhost"
         )  # connect to DB
         self.loadKnownFaces()
@@ -44,14 +44,14 @@ class Camera:
 
         while self.is_on.is_set():
 
-            hasFrame, frame = self.vid_stream.read()
+            has_frame, frame = self.vid_stream.read()
 
-            if not hasFrame:
+            if not has_frame:
                 print("no frame :(")
                 break
 
             elif cv2.waitKey(1) & 0xFF == ord("q"):
-                self.vid_stream.release
+                self.vid_stream.release()
                 break
 
             self.tm.start()
@@ -69,13 +69,13 @@ class Camera:
 
         this_emb = self.frecogi_model.infer(img)
 
-        for name in self.KnownEmbs:
+        for name in self.known_embs:
 
-            trg_emb = self.KnownEmbs[name]
+            trg_emb = self.known_embs[name]
             dist, is_recognised = self.frecogi_model.dist(trg_emb, this_emb)
 
             if is_recognised:
-                name_tag = self.myDB.fetchName(name)
+                name_tag = self.my_db.fetchName(name)
 
         return name_tag, dist, is_recognised
 
@@ -144,16 +144,16 @@ class Camera:
 
     def loadKnownFaces(self) -> dict:
 
-        self.KnownEmbs = dict()
+        self.known_embs = dict()
 
-        self.KnownEmbs = self.myDB.fetchEncodings()
-        numOfFaces = self.myDB.numOfFaces()
+        self.known_embs = self.my_db.fetchEncodings()
+        num_faces = self.my_db.numOfFaces()
 
-        print("{} face(s) loaded...".format(numOfFaces))
+        print("{} face(s) loaded...".format(num_faces))
 
         # print(self.KnownEmbs)
 
-        return self.KnownEmbs
+        return self.known_embs
 
 
 def get_avail_cameras() -> list:

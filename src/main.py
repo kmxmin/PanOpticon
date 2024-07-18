@@ -22,8 +22,8 @@ def main(args: list[str]):
 
     if len(args) == 1:
         # no arguments. Run camera window on first camera connected to computer
-        camera_obj0 = Camera(FD_MODEL_PATH, FR_MODEL_PATH, camera=0)
-        camera_obj0.camera_loop()
+        camera_obj = Camera(FD_MODEL_PATH, FR_MODEL_PATH, camera=0)
+        camera_obj.camera_loop()
 
     elif len(args) == 2:
 
@@ -41,8 +41,8 @@ def main(args: list[str]):
             # run camera window on specific camera
 
             camera_id = int(args[1])
-            camera_obj0 = Camera(FD_MODEL_PATH, FR_MODEL_PATH, camera=camera_id)
-            camera_obj0.camera_loop()
+            camera_obj = Camera(FD_MODEL_PATH, FR_MODEL_PATH, camera=camera_id)
+            camera_obj.camera_loop()
 
     print("good bye ;)")
 
