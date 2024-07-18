@@ -31,7 +31,7 @@ class admin_window():
         # self.root.geometry("1000x500") # Admin window size
 
         self.myDB = database.vectorDB('postgres', '2518', 'PanOpticon', 'localhost')     # change this line to your local server credentials
-        self.myDB.createTables() # to reset DB; comment this out if you don't want to reset it
+        #self.myDB.createTables() # to reset DB; comment this out if you don't want to reset it
 
         self.video_feed = cv2.VideoCapture(0)
         self.width = int(self.video_feed.get(cv2.CAP_PROP_FRAME_WIDTH))
