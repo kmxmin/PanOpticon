@@ -12,7 +12,7 @@ from sface import SFace
 import image_tools
 
 class Camera():
-    def __init__(self, fd_model_path: str, fr_model_path: str) -> None:        
+    def __init__(self, fd_model_path: str, fr_model_path: str, camera=0) -> None:        
 
         # load in detection and recognition models
         self.fdetect_model = YuNet(modelPath=fd_model_path, confThreshold=0.8)
@@ -22,7 +22,7 @@ class Camera():
         self.myDB = vectorDB('postgres', 'hotwheels', 'FaceDetection', 'localhost')  # connect to DB
         self.loadKnownFaces()
 
-        self.vid_stream = cv2.VideoCapture(0)
+        self.vid_stream = cv2.VideoCapture(camera)
         self.width = int(self.vid_stream.get(cv2.CAP_PROP_FRAME_WIDTH))
         self.height = int(self.vid_stream.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
