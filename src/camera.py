@@ -9,7 +9,7 @@ from threading import Event
 from database import vectorDB
 from yunet import YuNet
 from sface import SFace
-import image_tools
+
 
 class Camera():
     def __init__(self, fd_model_path: str, fr_model_path: str, camera=0) -> None:        
@@ -19,7 +19,7 @@ class Camera():
         self.frecogi_model = SFace(modelPath=fr_model_path, disType=1)
         print("models loaded...")
 
-        self.myDB = vectorDB('postgres', 'hotwheels', 'FaceDetection', 'localhost')  # connect to DB
+        self.myDB = vectorDB('postgres', '2518', 'FaceDetection', 'localhost')  # connect to DB
         self.loadKnownFaces()
 
         self.vid_stream = cv2.VideoCapture(camera)
@@ -63,6 +63,7 @@ class Camera():
         name_tag = "?unknown?"
 
         this_emb = self.frecogi_model.infer(img)
+        
 
         for name in self.KnownEmbs:
         
@@ -70,7 +71,7 @@ class Camera():
             dist, is_recognised = self.frecogi_model.dist(trg_emb, this_emb)
 
             if is_recognised:
-                name_tag = name
+                name_tag = self.myDB.fetchName(name)
         
         return name_tag, dist, is_recognised
 
