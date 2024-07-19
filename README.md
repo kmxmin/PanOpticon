@@ -4,11 +4,13 @@ PanOpticon is a facial detection and recognition system.
 
 ## Dependencies
 
+```
 python 3.8+
 numpy==2.0.0
 opencv-python==4.10.0.84
 pillow==10.4.0
 psycopg2-binary==2.9.9
+```
 
 
 ## Setting up the virtual environment
