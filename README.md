@@ -37,10 +37,12 @@ pip install -r requirements.txt
 This step might take a while to execute. 
 
 ## Setting up PostgreSQL
-- PostgreSQL server
+
+```
 macOS: https://postgresapp.com/
 Ubuntu: apt-get install postgresql
 Windowns: https://www.postgresql.org/download/windows/
+```
 
 Furthermore, make sure you have PostgreSQL installed and the server is running on your computer. Use the username and the password you used on PostgreSQL admin to connect to the server. Change the below lines in camera.py and admin_window.py to use your credentials.
 
