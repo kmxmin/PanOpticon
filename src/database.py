@@ -119,10 +119,10 @@ class Database:
         update_encoding_query = "UPDATE Encoding SET encoding = %s, timesAdded = timesAdded + 1 WHERE id = %s"
         cursor.execute(update_encoding_query, (pickled_encoding, faceID))
 
-        logEvent = "INSERT INTO Events (ID, description) VALUES (%s, %s)"
+        log_event = "INSERT INTO Events (ID, description) VALUES (%s, %s)"
         description = "Old face {} was used to update Faces table.".format(first_name)
         event_query = (faceID, description)
-        cursor.execute(logEvent, event_query)
+        cursor.execute(log_event, event_query)
 
         cursor.close()
 
@@ -143,7 +143,7 @@ class Database:
     ) -> None:
         cursor = self.conn.cursor()
 
-        addFace = "INSERT INTO Faces (ID, firstName, lastName) VALUES (%s, %s, %s)"
+        add_face = "INSERT INTO Faces (ID, firstName, lastName) VALUES (%s, %s, %s)"
 
         # count represents the number proceeding the faceID
         if (
@@ -155,7 +155,7 @@ class Database:
         else:
             faceID += str(count)
 
-        cursor.execute(addFace, (faceID, first_name, last_name))
+        cursor.execute(add_face, (faceID, first_name, last_name))
 
         pickled_encoding = pickle.dumps(encoding)  # dumps() serialises an object
 
