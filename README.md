@@ -1,6 +1,15 @@
 # PanOpticon (Proof of Concept)
 
-PanOpticon is a facial detection and recognition system
+PanOpticon is a facial detection and recognition system.
+
+## Dependencies
+
+python 3.8+
+numpy==2.0.0
+opencv-python==4.10.0.84
+pillow==10.4.0
+psycopg2-binary==2.9.9
+
 
 ## Setting up the virtual environment
 
@@ -24,6 +33,12 @@ pip install -r requirements.txt
 ```
 
 This step might take a while to execute. 
+
+## Setting up PostgreSQL
+- PostgreSQL server
+macOS: https://postgresapp.com/
+Ubuntu: apt-get install postgresql
+Windowns: https://www.postgresql.org/download/windows/
 
 Furthermore, make sure you have PostgreSQL installed and the server is running on your computer. Use the username and the password you used on PostgreSQL admin to connect to the server. Change the below lines in camera.py and admin_window.py to use your credentials.
 
