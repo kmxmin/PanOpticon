@@ -1,10 +1,9 @@
 
-import cv2
 import camera
 import sys
 
 from camera import Camera
-from admin_window import admin_window
+from admin_window import AdminWindow
 
 
 FD_MODEL_PATH = "model/face_detection_yunet_2023mar.onnx"
@@ -20,7 +19,7 @@ def main(args: list[str]):
 
         if args[1] == "a":
             # run admin
-            admin_obj = admin_window(FD_MODEL_PATH, FR_MODEL_PATH)
+            admin_obj = AdminWindow(FD_MODEL_PATH, FR_MODEL_PATH)
         
         elif args[1] == "h":
             cameras = camera.get_avail_cameras()
