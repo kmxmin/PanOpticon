@@ -7,17 +7,8 @@ from sface import SFace
 from yunet import YuNet
 
 
-def image_to_encoding(img: np.ndarray, model: SFace):
-    return model.infer(image=img)
-
-
-def image_to_encoding(img: np.ndarray, bbox, model: SFace):
-    return model.infer(image=img, bbox=bbox)
-
-
+# returns a cropped image using YuNet
 def extract_face(img: np.ndarray, model: YuNet, buffer=20):
-    # returns a cropped image using YuNet
-
     results = model.infer(img)
     buffer_hlf = buffer//2
 
