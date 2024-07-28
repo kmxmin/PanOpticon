@@ -2,13 +2,16 @@
 
 import cv2
 import numpy as np
+import os
 
 from datetime import datetime
 from threading import Event
 
-from database import vectorDB
+from database import Database
 from yunet import YuNet
 from sface import SFace
+
+from dotenv import load_dotenv
 
 
 class Camera():
@@ -17,9 +20,13 @@ class Camera():
         # load in detection and recognition models
         self.fdetect_model = YuNet(modelPath=fd_model_path, confThreshold=0.8)
         self.frecogi_model = SFace(modelPath=fr_model_path, disType=1)
-        print("models loaded...")
 
-        self.myDB = vectorDB('postgres', '2518', 'FaceDetection', 'localhost')  # connect to DB
+        load_dotenv()
+
+        self.myDB = Database(
+            os.getenv("USER_NAME"), os.getenv("PASSWORD"), 
+            os.getenv("DATABASE_NAME"), os.getenv("PORT_NUMBER")
+        )
         self.loadKnownFaces()
 
         self.vid_stream = cv2.VideoCapture(camera)
@@ -84,8 +91,8 @@ class Camera():
         for i, det in enumerate(results):
             
             bbox = det[0:4].astype(np.int32)
-            x1, y1 = abs(bbox[0]), abs(bbox[1])
-            x2, y2 = abs(bbox[0]+bbox[2]), abs(bbox[1]+bbox[3])
+            x1, y1 = bbox[0], bbox[1]
+            x2, y2 = bbox[0]+bbox[2], bbox[1]+bbox[3]
 
             face_img = img[y1:y2, x1:x2]
             face_img = cv2.resize(face_img, (160,160))
